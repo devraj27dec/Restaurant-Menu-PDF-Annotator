@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model Menu {
+  id         String       @id @default(cuid())
+  filename   String
+  uploadDate DateTime     @default(now())
+  status     FileStatus   @default(uploaded)
+  annotations Annotation[]
+  menuItems  MenuItem[]
+}
+
+model Annotation {
+  id          String         @id @default(cuid())
+  menuId      String
+  pageNumber  Int
+  boundingBox Json
+  text        String
+  type        AnnotationType
+  groupId     String
+  menu        Menu           @relation(fields: [menuId], references: [id])
+  menuItems   MenuItem[]
+}
+
+model MenuItem {
+  id          String     @id @default(cuid())
+  menuId      String
+  category    String
+  name        String
+  description String
+  price       Decimal
+  annotationId String
+  annotations   Annotation @relation(fields: [annotationId], references: [id])
+  menu         Menu       @relation(fields: [menuId], references: [id])
+}
+
+enum FileStatus {
+  uploaded
+  annotated
+  extracted
+}
+
+enum AnnotationType {
+  item
+  price
+  description
+  category
+}
