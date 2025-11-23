@@ -5,7 +5,7 @@ import {PDFParse} from 'pdf-parse'
 import  {prisma}  from "../prisma.js"
 import path from 'path'
 import fs from 'fs'
-import { extractAnnotations, ExtractMenuItems } from "../services.js"
+import {ExtractMenuItems } from "../services.js"
 
 const router = express.Router();
 
@@ -29,7 +29,6 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
   if (!req.file) {
     return res.status(400).json({ message: "No PDF file uploaded" });
   }
-
   try {
     const filePath = path.join("uploads", req.file.filename);
     const buffer = fs.readFileSync(filePath);
@@ -42,7 +41,7 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
 
     console.log("Extracted text:", text);
 
-    await prisma.menu.create({
+    const createdMenu = await prisma.menu.create({
       data: {
         filename: req.file.originalname,
         uploadDate: new Date(),
@@ -51,6 +50,7 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
     });
 
     res.status(201).json({
+      id: createdMenu.id,
       message: "File stored and PDF parsed successfully!",
       extractedText: text,
       metadata
@@ -59,36 +59,56 @@ router.post("/upload", upload.single("file"), async (req: Request, res: Response
     console.error(err);
     res.status(500).json({ message: "PDF processing failed" });
   }
-
 });
 
 
-router.post("/:id/annotations", async (req, res) => {
-  const menuId = req.params.id;
-  const annotations = await extractAnnotations(menuId)
-
+router.post("/:menuId/annotations", async (req, res) => {
   try {
-    const saved = await prisma.annotation.createMany({
+    const { menuId } = req.params;
+    const { annotations } = req.body;
+
+    console.log("annotaions" , annotations)
+
+    if (!annotations || !Array.isArray(annotations)) {
+      return res.status(400).json({ error: "Invalid annotations format" });
+    }
+
+    await prisma.annotation.createMany({
       data: annotations.map(a => ({
         menuId,
         pageNumber: a.pageNumber,
         boundingBox: a.boundingBox,
         text: a.text,
         type: a.type,
-        groupId: a.groupId
-      }))
+        groupId: String(a.groupId)
+      })),
     });
 
-    res.status(201).json({
-      message: "Annotations saved successfully",
-      count: saved.count
-    });
+    return res.json({ success: true, count: annotations.length });
 
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Failed to save annotations" });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: (err as Error).message });
   }
 });
+
+
+router.delete('/:id/annotations' , async(req:Request , res:Response) => {
+  const menuId = req.params.id
+
+  if(!menuId){
+    return res.status(400).send("Menu Not Found")
+  }
+  const result = await prisma.annotation.deleteMany({
+    where:{
+      menuId: menuId ?? ""
+    }
+  })
+
+  return res.status(200).send(`Deleted ${result.count} annotation(s) successfully`)
+})
+
+
 
  
 router.get('/:id/annotations' , async(req:Request , res:Response) => {
@@ -116,9 +136,8 @@ router.post('/:id/extract', async (req: Request, res: Response) => {
 
   try {
     const menuItems = await ExtractMenuItems(menuId!);
-    // console.log("menuItem" , menuItems)
 
-    await Promise.all(menuItems.map(async (item) => {
+    await Promise.all(menuItems.map(async (item:any) => {
       console.log("items" , item)
       await prisma.menuItem.create({
         data: {
@@ -132,12 +151,20 @@ router.post('/:id/extract', async (req: Request, res: Response) => {
       });
     }));
 
+
+    await prisma.menu.update({
+      data: { status: "extracted" },
+      where: { id: menuId ?? ""},
+    });
+
+
     return res.status(201).json({ success: true, created: menuItems.length });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: (error as Error).message });
   }
 });
+
 
 
 router.get('/:id/items' , async(req:Request , res:Response) => {
@@ -152,26 +179,16 @@ router.get('/:id/items' , async(req:Request , res:Response) => {
 })
 
 
+router.get('/all', async(req: Request, res: Response) => {
+  try {
+    const menuList = await prisma.menuItem.findMany()
+    return res.status(200).json(menuList)
+  } catch (error) {
+    console.error('Error fetching menu items:', error)
+    return res.status(500).json({ error: 'Failed to fetch menu items' })
+  }
+})
 
-// router.get("/:menuId", async (req: Request, res: Response) => {
-//   try {
-//     const { menuId } = req.params;
-
-//     if (!menuId) {
-//       return res.status(400).json({ message: "Menu ID is required" });
-//     }
-
-//     const data = await extractAnnotations(menuId);
-
-//     console.log("Extracted Data:", data);
-
-//     return res.json(data);
-
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Failed to extract annotations" });
-//   }
-// });
 
 
 export default router;

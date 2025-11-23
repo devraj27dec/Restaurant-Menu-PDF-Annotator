@@ -1,9 +1,28 @@
+import { pdfjs } from "react-pdf";
+import PdfUploadPreview from "./components/Uploader";
+import { BrowserRouter as Router , Routes , Route}  from 'react-router-dom'
+import Menus from "./Menus";
+import {Toaster} from 'react-hot-toast'
 
-function App() {
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
+
+
+const App = () => {
   return (
-    <div>
-      <h1>Welcome to Pdf Anotator App</h1>
-    </div>
-  )
-}
-export default App
+    <Router>
+      <Routes>
+        <Route path="/" element={<PdfUploadPreview/>}/>
+        <Route path="/menu-list" element={<Menus/>}/>
+      </Routes>
+      <Toaster/>
+    </Router>
+  );
+};
+
+export default App;
+
+
+
