@@ -141,8 +141,8 @@ router.post('/:id/extract', async (req: Request, res: Response) => {
       console.log("items" , item)
       await prisma.menuItem.create({
         data: {
-          menuId,
-          annotationId: annotation?.id, 
+          menuId:menuId ?? "",
+          annotationId: annotation?.id ?? "", 
           name: item.name,                
           description: item.description ?? "",
           price:item.price ? parseFloat(item.price.split("$")[1] ?? "0") : 0, 
@@ -151,12 +151,10 @@ router.post('/:id/extract', async (req: Request, res: Response) => {
       });
     }));
 
-
     await prisma.menu.update({
       data: { status: "extracted" },
       where: { id: menuId ?? ""},
     });
-
 
     return res.status(201).json({ success: true, created: menuItems.length });
   } catch (error) {

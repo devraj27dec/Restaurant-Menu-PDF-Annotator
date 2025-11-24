@@ -10,7 +10,6 @@ import {
   Layers,
   Trash2,
   Download,
-  ChevronRight,
   ZoomIn,
   ZoomOut,
   Loader2,
@@ -73,13 +72,12 @@ export default function PdfUploadPreview() {
   const [startPos, setStartPos] = useState<Position | null>(null);
   const [currentBox, setCurrentBox] = useState<Box | null>(null);
 
-  // Annotations
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedType, setSelectedType] = useState<string>("item");
   const [currentGroup, setCurrentGroup] = useState<number | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
 
-  // Extracted Data
+
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [editingItem, setEditingItem] = useState<number | null>(null);
   const [_, setIsSavingMenuItems] = useState<boolean>(false);
@@ -105,28 +103,26 @@ export default function PdfUploadPreview() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Set canvas size to match PDF page
       canvas.width = pageWidth;
       canvas.height = pageHeight;
 
-      // Clear canvas
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw all annotations
+
       annotations.forEach((ann) => {
         const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
         if (!type) return;
 
-        // Draw rectangle
+
         ctx.strokeStyle = type.color;
         ctx.lineWidth = 3;
         ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
 
-        // Draw label background
+
         ctx.fillStyle = type.color;
         ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
 
-        // Draw label text
         ctx.fillStyle = "white";
         ctx.font = "bold 12px sans-serif";
         ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
@@ -241,7 +237,6 @@ export default function PdfUploadPreview() {
     setPageWidth(viewport.width);
     setPageHeight(viewport.height);
 
-    // Render PDF page to a hidden canvas for OCR
     const hiddenCanvas = document.createElement("canvas");
     const context = hiddenCanvas.getContext("2d");
     hiddenCanvas.width = viewport.width;
@@ -678,7 +673,6 @@ export default function PdfUploadPreview() {
           </div>
         )}
 
-        {/* Step 2: Annotate */}
         {step === 2 && (
           <div className="grid grid-cols-12 gap-6">
             {/* Left Sidebar - Tools */}

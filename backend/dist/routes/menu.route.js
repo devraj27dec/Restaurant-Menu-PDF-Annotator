@@ -105,8 +105,8 @@ router.post('/:id/extract', async (req, res) => {
             console.log("items", item);
             await prisma.menuItem.create({
                 data: {
-                    menuId,
-                    annotationId: annotation?.id,
+                    menuId: menuId ?? "",
+                    annotationId: annotation?.id ?? "",
                     name: item.name,
                     description: item.description ?? "",
                     price: item.price ? parseFloat(item.price.split("$")[1] ?? "0") : 0,
