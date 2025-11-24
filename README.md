@@ -1,7 +1,3 @@
-﻿Here’s a clean, well-formatted and professional README you can copy-paste and edit as needed 👇
-
----
-
 # 📄 Restaurant Menu PDF Annotator
 
 A full-stack web application that allows users to upload restaurant menus as PDFs, annotate them, extract structured text, edit the extracted fields (name, price, description, category), and export the data.
@@ -208,5 +204,6 @@ Delete menu + related records.
 MIT License — Free for personal & commercial use.
 
 ---
+
 
 
