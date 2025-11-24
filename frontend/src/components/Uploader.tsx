@@ -876,7 +876,6 @@ export default function PdfUploadPreview() {
               </div>
             </div>
             <div className="col-span-3 space-y-4">
-              {/* Add this BEFORE your existing sidebars */}
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3 text-sm">
                   Pages ({numPages})
@@ -926,7 +925,6 @@ export default function PdfUploadPreview() {
                   )}
                 </div>
               </div>
-
               <div className="col-span-3">
                 <div className="bg-white rounded-xl shadow p-4 max-h-[700px] overflow-auto">
                   <div className="flex items-center justify-between mb-3">
