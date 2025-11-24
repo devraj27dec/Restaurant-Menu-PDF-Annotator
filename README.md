@@ -196,10 +196,10 @@ Delete menu + related records.
 
 | Feature | Preview |
 |--------|---------|
-| 📄 Upload & View PDF | ![Upload PDF](./public/s1.png) |
-| ✏️ Draw Annotations | ![Annotations](./public/s2.png) |
-| 📝 Editable Table View | ![Table View](./public/s3.png) |
-| 📤 Export CSV | ![Export](./public/screenshots/e4.png) |
+| 📄 Upload & View PDF | ![Upload PDF](./frontend/public/s1.png) |
+| ✏️ Draw Annotations | ![Annotations](./frontend/public/s2.png) |
+| 📝 Editable Table View | ![Table View](./frontend/public/s3.png) |
+| 📤 Export CSV | ![Export](./frontend/public/s4.png) |
 
 ---
 
@@ -208,4 +208,5 @@ Delete menu + related records.
 MIT License — Free for personal & commercial use.
 
 ---
+
 
