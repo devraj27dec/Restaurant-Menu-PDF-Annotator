@@ -46,7 +46,7 @@ export default function MenuTable({menuItems ,editingItem , updateMenuItem , set
                     className="w-full px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 ) : (
-                  <span className="text-green-600 font-semibold">{item.price || "—"}</span>
+                  <span className="text-green-600 font-semibold">{item.price || "—"} $</span>
                 )}
               </td>
 

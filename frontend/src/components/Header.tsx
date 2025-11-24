@@ -1,9 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
-import {  FileText,  List } from "lucide-react";
+import {  Download, FileText,  List } from "lucide-react";
 
 export default function Header() {
   const location = useLocation();
   const isActive = (path: string) => location.pathname === path;
+
+  const handleDummyFileDownload = () => {
+    const link = document.createElement("a");
+    link.href = "/dummy.pdf"; 
+    link.download = "menu-list.pdf"; 
+    link.click();
+  };
+
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -20,6 +28,11 @@ export default function Header() {
           </Link>
 
           {/* Navigation */}
+
+          <div className="flex space-x-4">
+            <button onClick={handleDummyFileDownload} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border bg-blue-600 text-white shadow-md cursor-pointer">
+              Download <Download className="ml-1"/>
+            </button>
           
             <Link
               to="/menu-list"
@@ -32,6 +45,7 @@ export default function Header() {
               <List className="w-4 h-4" />
               Menu List
             </Link>
+          </div>
         </div>
       </div>
     </header>

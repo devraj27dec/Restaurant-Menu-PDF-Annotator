@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Annotation, Group } from '../lib/types';
 ;
 
+
 export function useAnnotations() {
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [currentGroup, setCurrentGroup] = useState<number | null>(null);

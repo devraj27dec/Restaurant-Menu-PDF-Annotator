@@ -24,6 +24,7 @@ import { useAnnotations } from "../hooks/useAnnotations";
 import { API_BACKEND_URL } from "../lib/config";
 import ExportedFeatures from "./ExportedFeatures";
 import toast from "react-hot-toast";
+import AnnotationsToolBar from "./AnnotationsToolBar";
 
 declare global {
   interface Window {
@@ -87,8 +88,14 @@ export default function PdfUploadPreview() {
 
   const canvasRefs = useRef<{ [key: number]: HTMLCanvasElement | null }>({});
 
-  const { createGroup, deleteAnnotation, groups, updateAnnotationText , finalizeGroup , currentGroup } =
-    useAnnotations();
+  const {
+    createGroup,
+    deleteAnnotation,
+    groups,
+    updateAnnotationText,
+    finalizeGroup,
+    currentGroup,
+  } = useAnnotations();
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -102,7 +109,6 @@ export default function PdfUploadPreview() {
       document.head.removeChild(script);
     };
   }, []);
-
 
   useEffect(() => {
     if (viewMode === "all") {
@@ -208,23 +214,21 @@ export default function PdfUploadPreview() {
     pageNumber,
   ]);
 
-
-  const FILE_SIZE = 5 * 1024 * 1024
+  const FILE_SIZE = 5 * 1024 * 1024;
   const handleFileSelect = async (file: File | undefined) => {
     if (!file) return;
     setError("");
     setUploadProgress(0);
 
-    if(file.size > FILE_SIZE ){
-      toast.error("File Size is too larged")
-      return
+    if (file.size > FILE_SIZE) {
+      toast.error("File Size is too larged");
+      return;
     }
 
     if (file.type !== "application/pdf") {
       setError("Only PDF files are allowed!");
       return;
     }
-
 
     const formData = new FormData();
     formData.append("file", file);
@@ -311,15 +315,14 @@ export default function PdfUploadPreview() {
   };
 
   const extractTextFromBox = async (annotation: Annotation) => {
-    
-    if(!currentGroup){
-      toast.error("Please Select Group First")
-      return
+    if (!currentGroup) {
+      toast.error("Please Create a Group First");
+      return;
     }
 
     if (!pdfCanvas || !tesseractLoaded || !window.Tesseract) return;
 
-    // Update annotation to show loading state
+
     setAnnotations((prev) =>
       prev.map((a) =>
         a.id === annotation.id ? { ...a, isExtracting: true } : a
@@ -437,7 +440,6 @@ export default function PdfUploadPreview() {
     setStartPos(null);
   };
 
-
   const extractData = () => {
     const extractedItems: MenuItem[] = groups.map((group) => {
       const groupAnnotations = annotations.filter(
@@ -524,8 +526,6 @@ export default function PdfUploadPreview() {
     }
   };
 
-
-
   const updateMenuItem = (id: number, field: keyof MenuItem, value: string) => {
     setMenuItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, [field]: value } : item))
@@ -533,7 +533,7 @@ export default function PdfUploadPreview() {
   };
 
   const handleRefresh = () => {
-    setAnnotations([])
+    setAnnotations([]);
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -541,10 +541,9 @@ export default function PdfUploadPreview() {
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath(); 
+      ctx.beginPath();
     }
-    
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -565,37 +564,10 @@ export default function PdfUploadPreview() {
         {step === 2 && (
           <div className="grid grid-cols-12 gap-6">
             <div className="col-span-3 space-y-4">
-              <div className="bg-white rounded-xl shadow p-4">
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Square className="w-5 h-5" />
-                  Annotation Tools
-                </h3>
-                <div className="space-y-2">
-                  {ANNOTATION_TYPES.map((type) => {
-                    const Icon = type.icon;
-                    return (
-                      <button
-                        key={type.id}
-                        onClick={() => setSelectedType(type.id)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all ${
-                          selectedType === type.id
-                            ? "bg-blue-50 border-2 border-blue-500"
-                            : "bg-gray-50 hover:bg-gray-100 border-2 border-transparent"
-                        }`}
-                      >
-                        <div
-                          className="w-4 h-4 rounded"
-                          style={{ backgroundColor: type.color }}
-                        />
-                        <Icon className="w-4 h-4" />
-                        <span className="text-sm font-medium">
-                          {type.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <AnnotationsToolBar
+                selectedType={selectedType}
+                onSelectType={setSelectedType}
+              />
 
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3">Grouping</h3>
@@ -731,8 +703,11 @@ export default function PdfUploadPreview() {
                     </button>
                   </div>
 
-                  <button onClick={handleRefresh} className="flex items-center text-sm border p-1 rounded-md">
-                    <RefreshCcw className="size-4 mr-1"/> Refresh
+                  <button
+                    onClick={handleRefresh}
+                    className="flex items-center text-sm border p-1 rounded-md"
+                  >
+                    <RefreshCcw className="size-4 mr-1" /> Refresh
                   </button>
 
                   {viewMode === "single" && (
@@ -1095,12 +1070,10 @@ export default function PdfUploadPreview() {
             </div>
           </div>
         )}
-
         {step === 4 && (
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6">
-
-              <ExportedFeatures menuItems={menuItems}/>
+              <ExportedFeatures menuItems={menuItems} />
 
               <MenuTable
                 menuItems={menuItems}

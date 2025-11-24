@@ -60,7 +60,7 @@ export default function PdfUploader({
         <p className="text-gray-500 mb-4">
           {isUploading
             ? "Please wait while we upload your file"
-            : "Drag and drop or click to browse"}
+            : "Drag & drop or click to upload (Max 5MB)"}
         </p>
         {!isUploading && (
           <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium">
