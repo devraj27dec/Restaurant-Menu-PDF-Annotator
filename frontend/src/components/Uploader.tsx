@@ -13,6 +13,8 @@ import {
   Loader2,
   AlertCircle,
   RefreshCcw,
+  Undo,
+  Redo,
 } from "lucide-react";
 import Header from "./Header";
 import MenuTable from "./MenuTable";
@@ -87,6 +89,11 @@ export default function PdfUploadPreview() {
   const [viewMode, setViewMode] = useState<"single" | "all">("all");
 
   const canvasRefs = useRef<{ [key: number]: HTMLCanvasElement | null }>({});
+
+
+  const [undoStack, setUndoStack] = useState<Annotation[][]>([]);
+  const [redoStack, setRedoStack] = useState<Annotation[][]>([]);
+
 
   const {
     createGroup,
@@ -253,6 +260,7 @@ export default function PdfUploadPreview() {
       const menuId =
         response.data?.id || response.data?.menuId || response.data?.data?.id;
 
+
       if (menuId) {
         setUploadedMenuId(menuId);
         console.log("Menu ID set:", menuId);
@@ -265,7 +273,6 @@ export default function PdfUploadPreview() {
 
       setPdfFile(file);
       setIsUploading(false);
-
       setTimeout(() => setStep(2), 500);
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -303,14 +310,13 @@ export default function PdfUploadPreview() {
     hiddenCanvas.height = viewport.height;
 
     if (context) {
-      page
-        .render({
-          canvasContext: context,
-          viewport: viewport,
-        })
-        .promise.then(() => {
-          setPdfCanvas(hiddenCanvas);
-        });
+      page.render({
+        canvasContext: context,
+        viewport: viewport,
+      })
+      .promise.then(() => {
+        setPdfCanvas(hiddenCanvas);
+      });
     }
   };
 
@@ -363,6 +369,8 @@ export default function PdfUploadPreview() {
           .replace(/\n+/g, " ")
           .replace(/\s+/g, " ");
 
+
+
         setAnnotations((prev) =>
           prev.map((a) =>
             a.id === annotation.id
@@ -370,6 +378,8 @@ export default function PdfUploadPreview() {
               : a
           )
         );
+
+        
       }
     } catch (error) {
       console.error("OCR Error:", error);
@@ -430,6 +440,8 @@ export default function PdfUploadPreview() {
         pageNumber: pageNumber,
       };
 
+      setUndoStack((prev) => [...prev , annotations])
+
       setAnnotations([...annotations, newAnnotation]);
 
       setTimeout(() => extractTextFromBox(newAnnotation), 100);
@@ -438,6 +450,27 @@ export default function PdfUploadPreview() {
     setIsDrawing(false);
     setCurrentBox(null);
     setStartPos(null);
+  };
+
+
+  const handlUndo = () => {
+    if(undoStack.length === 0) return
+    const prevShapes = undoStack[undoStack.length - 1]
+    
+    setRedoStack((prev) => [...prev , annotations])
+    setAnnotations(prevShapes)
+    setUndoStack((prev) => prev.slice(0, prev.length - 1));
+
+  }
+
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+
+    const next = redoStack[redoStack.length - 1];
+    setUndoStack((prev) => [...prev, annotations]); 
+    setAnnotations(next);
+    setRedoStack((prev) => prev.slice(0, prev.length - 1));
   };
 
   const extractData = () => {
@@ -703,12 +736,22 @@ export default function PdfUploadPreview() {
                     </button>
                   </div>
 
-                  <button
-                    onClick={handleRefresh}
-                    className="flex items-center text-sm border p-1 rounded-md"
-                  >
-                    <RefreshCcw className="size-4 mr-1" /> Refresh
-                  </button>
+                  <div className="flex space-x-2">
+                    <button onClick={handlUndo} disabled={undoStack.length === 0}  className="text-sm border p-0.5 rounded-md ">
+                      <Undo/>
+                    </button>
+
+                    <button onClick={handleRedo} disabled={redoStack.length === 0} className="text-sm border p-0.5 rounded-md">
+                      <Redo/>
+                    </button>
+
+                    <button
+                      onClick={handleRefresh}
+                      className="flex items-center text-sm border p-1 rounded-md ml-2"
+                    >
+                      <RefreshCcw className="size-4 mr-1" /> Refresh
+                    </button>
+                  </div>
 
                   {viewMode === "single" && (
                     <div className="text-sm text-gray-600 font-medium">
@@ -912,9 +955,8 @@ export default function PdfUploadPreview() {
                       className={`px-3 py-1 text-white text-sm rounded transition ${
                         groups.length === 0
                           ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                    >
+                          : "bg-blue-600 hover:bg-blue-700"}`}>
+
                       Review
                     </button>
                   </div>
@@ -925,7 +967,6 @@ export default function PdfUploadPreview() {
                       );
                       const group = groups.find((g) => g.id === ann.groupId);
                       if (!type) return null;
-
                       return (
                         <div
                           key={ann.id}
