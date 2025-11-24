@@ -2,23 +2,28 @@
 import { useState, useRef, useEffect } from "react";
 import { Document, Page } from "react-pdf";
 import {
-  Upload,
   Square,
   Tag,
   DollarSign,
   AlignLeft,
   Layers,
   Trash2,
-  Download,
   ZoomIn,
   ZoomOut,
   Loader2,
   AlertCircle,
+  RefreshCcw,
 } from "lucide-react";
 import Header from "./Header";
 import MenuTable from "./MenuTable";
-import type { Annotation, Box, Group, MenuItem, Position } from "../lib/types";
+import type { Annotation, Box, MenuItem, Position } from "../lib/types";
 import axios from "axios";
+import PdfUploader from "./PdfUploader";
+import Stepper from "./Stepper";
+import { useAnnotations } from "../hooks/useAnnotations";
+import { API_BACKEND_URL } from "../lib/config";
+import ExportedFeatures from "./ExportedFeatures";
+import toast from "react-hot-toast";
 
 declare global {
   interface Window {
@@ -53,7 +58,6 @@ export default function PdfUploadPreview() {
   const [uploadedMenuId, setUploadedMenuId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [error, setError] = useState<string>("");
-  const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isSavingAnnotations, setIsSavingAnnotations] =
     useState<boolean>(false);
@@ -74,15 +78,18 @@ export default function PdfUploadPreview() {
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedType, setSelectedType] = useState<string>("item");
-  const [currentGroup, setCurrentGroup] = useState<number | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [editingItem, setEditingItem] = useState<number | null>(null);
   const [_, setIsSavingMenuItems] = useState<boolean>(false);
 
-  // Load Tesseract.js
+  const [viewMode, setViewMode] = useState<"single" | "all">("all");
+
+  const canvasRefs = useRef<{ [key: number]: HTMLCanvasElement | null }>({});
+
+  const { createGroup, deleteAnnotation, groups, updateAnnotationText , finalizeGroup , currentGroup } =
+    useAnnotations();
+
   useEffect(() => {
     const script = document.createElement("script");
     script.src =
@@ -98,70 +105,126 @@ export default function PdfUploadPreview() {
 
 
   useEffect(() => {
-    if (canvasRef.current && pageWidth && pageHeight) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+    if (viewMode === "all") {
+      Object.entries(canvasRefs.current).forEach(([pageNum, canvas]) => {
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
 
-      canvas.width = pageWidth;
-      canvas.height = pageHeight;
+        canvas.width = pageWidth;
+        canvas.height = pageHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+        const pageAnnotations = annotations.filter(
+          (a) => a.pageNumber === parseInt(pageNum)
+        );
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pageAnnotations.forEach((ann) => {
+          const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+          if (!type) return;
 
-
-      annotations.forEach((ann) => {
-        const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
-        if (!type) return;
-
-
-        ctx.strokeStyle = type.color;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
-
-
-        ctx.fillStyle = type.color;
-        ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
-
-        ctx.fillStyle = "white";
-        ctx.font = "bold 12px sans-serif";
-        ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
-      });
-
-      // Draw current box being drawn
-      if (currentBox) {
-        const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
-        if (type) {
           ctx.strokeStyle = type.color;
           ctx.lineWidth = 3;
-          ctx.setLineDash([5, 5]);
-          ctx.strokeRect(
-            currentBox.x,
-            currentBox.y,
-            currentBox.width,
-            currentBox.height
-          );
-          ctx.setLineDash([]);
+          ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+
+          ctx.fillStyle = type.color;
+          ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
+
+          ctx.fillStyle = "white";
+          ctx.font = "bold 12px sans-serif";
+          ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+        });
+
+        if (currentBox && pageNumber === parseInt(pageNum)) {
+          const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
+          if (type) {
+            ctx.strokeStyle = type.color;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(
+              currentBox.x,
+              currentBox.y,
+              currentBox.width,
+              currentBox.height
+            );
+            ctx.setLineDash([]);
+          }
+        }
+      });
+    } else {
+      if (canvasRef.current && pageWidth && pageHeight) {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        canvas.width = pageWidth;
+        canvas.height = pageHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const pageAnnotations = annotations.filter(
+          (a) => a.pageNumber === pageNumber
+        );
+
+        pageAnnotations.forEach((ann) => {
+          const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+          if (!type) return;
+
+          ctx.strokeStyle = type.color;
+          ctx.lineWidth = 3;
+          ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+
+          ctx.fillStyle = type.color;
+          ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
+
+          ctx.fillStyle = "white";
+          ctx.font = "bold 12px sans-serif";
+          ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+        });
+
+        if (currentBox) {
+          const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
+          if (type) {
+            ctx.strokeStyle = type.color;
+            ctx.lineWidth = 3;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(
+              currentBox.x,
+              currentBox.y,
+              currentBox.width,
+              currentBox.height
+            );
+            ctx.setLineDash([]);
+          }
         }
       }
     }
-  }, [annotations, currentBox, selectedType, pageWidth, pageHeight]);
+  }, [
+    annotations,
+    currentBox,
+    selectedType,
+    pageWidth,
+    pageHeight,
+    viewMode,
+    pageNumber,
+  ]);
 
+
+  const FILE_SIZE = 5 * 1024 * 1024
   const handleFileSelect = async (file: File | undefined) => {
     if (!file) return;
     setError("");
     setUploadProgress(0);
+
+    if(file.size > FILE_SIZE ){
+      toast.error("File Size is too larged")
+      return
+    }
 
     if (file.type !== "application/pdf") {
       setError("Only PDF files are allowed!");
       return;
     }
 
-    // if (!axios) {
-    //   setError("Please wait, loading required libraries...");
-    //   setTimeout(() => handleFileSelect(file), 1000);
-    //   return;
-    // }
 
     const formData = new FormData();
     formData.append("file", file);
@@ -170,7 +233,7 @@ export default function PdfUploadPreview() {
 
     try {
       const response = await axios.post(
-        "http://localhost:7000/api/menus/upload",
+        `${API_BACKEND_URL}/api/menus/upload`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
@@ -221,13 +284,6 @@ export default function PdfUploadPreview() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files[0];
-    handleFileSelect(file);
-  };
-
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };
@@ -255,6 +311,12 @@ export default function PdfUploadPreview() {
   };
 
   const extractTextFromBox = async (annotation: Annotation) => {
+    
+    if(!currentGroup){
+      toast.error("Please Select Group First")
+      return
+    }
+
     if (!pdfCanvas || !tesseractLoaded || !window.Tesseract) return;
 
     // Update annotation to show loading state
@@ -375,22 +437,6 @@ export default function PdfUploadPreview() {
     setStartPos(null);
   };
 
-  const deleteAnnotation = (id: number) => {
-    setAnnotations(annotations.filter((a) => a.id !== id));
-  };
-
-  const createGroup = () => {
-    const groupId = Date.now();
-    setCurrentGroup(groupId);
-    setGroups([
-      ...groups,
-      { id: groupId, name: `Item Group ${groups.length + 1}` },
-    ]);
-  };
-
-  const finalizeGroup = () => {
-    setCurrentGroup(null);
-  };
 
   const extractData = () => {
     const extractedItems: MenuItem[] = groups.map((group) => {
@@ -436,7 +482,7 @@ export default function PdfUploadPreview() {
 
     try {
       const response = await axios.post(
-        `http://localhost:7000/api/menus/${uploadedMenuId}/annotations`,
+        `${API_BACKEND_URL}/api/menus/${uploadedMenuId}/annotations`,
         payload
       );
 
@@ -463,7 +509,7 @@ export default function PdfUploadPreview() {
       setIsSavingMenuItems(true);
 
       const response = await axios.post(
-        `http://localhost:7000/api/menus/${uploadedMenuId}/extract`
+        `${API_BACKEND_URL}/api/menus/${uploadedMenuId}/extract`
       );
 
       setMenuItems(response.data);
@@ -471,47 +517,14 @@ export default function PdfUploadPreview() {
       console.log("Saved:", response.data);
     } catch (error: any) {
       console.error("Save annotations error:", error);
-      setError("Failed to save annotations.", error);
+      setError(error);
     } finally {
       setIsSavingMenuItems(false);
       setIsSavingAnnotations(false);
     }
   };
 
-  const exportToJSON = () => {
-    console.log("menuItems", menuItems);
-    const dataStr = JSON.stringify(menuItems, null, 2);
-    const dataBlob = new Blob([dataStr], { type: "application/json" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "menu-data.json";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
 
-  const exportToCSV = () => {
-    const headers = ["Name", "Price", "Description", "Category"];
-    const rows = menuItems.map((item) => [
-      `"${item.name.replace(/"/g, '""')}"`,
-      `"${item.price.replace(/"/g, '""')}"`,
-      `"${item.description.replace(/"/g, '""')}"`,
-      `"${item.category.replace(/"/g, '""')}"`,
-    ]);
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const dataBlob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "menu-data.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const updateAnnotationText = (id: number, text: string) => {
-    const updated = annotations.map((a) => (a.id === id ? { ...a, text } : a));
-    setAnnotations(updated);
-  };
 
   const updateMenuItem = (id: number, field: keyof MenuItem, value: string) => {
     setMenuItems((prev) =>
@@ -519,163 +532,38 @@ export default function PdfUploadPreview() {
     );
   };
 
+  const handleRefresh = () => {
+    setAnnotations([])
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath(); 
+    }
+    
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header />
 
-      <div className="bg-white shadow-lg border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-8 py-6">
-          <div className="relative">
-            {/* Progress Line */}
-            <div className="absolute left-0 right-0 h-1 bg-gray-200 top-5">
-              <div 
-                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 ease-out"
-                style={{ width: `${((step - 1) / 3) * 100}%` }}
-              />
-            </div>
-
-            {/* Steps */}
-            <div className="relative flex justify-between">
-              {[
-                { number: 1, label: 'Upload', description: 'Select your PDF file' },
-                { number: 2, label: 'Annotate', description: 'Mark menu items' },
-                { number: 3, label: 'Review', description: 'Verify extracted data' },
-                { number: 4, label: 'Export', description: 'Download your data' }
-              ].map((s) => (
-                <div key={s.number} className="flex flex-col items-center" style={{ flex: 1 }}>
-                  {/* Step Circle */}
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-all duration-300 relative z-10 ${
-                      s.number < step
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
-                        : s.number === step
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-110 ring-4 ring-blue-200'
-                        : 'bg-white border-2 border-gray-300 text-gray-400'
-                    }`}
-                  >
-                    {s.number < step ? (
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    ) : (
-                      <span>{s.number}</span>
-                    )}
-                  </div>
-
-                  {/* Step Label */}
-                  <div className="mt-3 text-center">
-                    <div
-                      className={`text-sm font-semibold transition-colors ${
-                        s.number <= step ? 'text-blue-600' : 'text-gray-400'
-                      }`}
-                    >
-                      {s.label}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 px-2">
-                      {s.description}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+      <Stepper step={step} />
 
       <div className="max-w-7xl mx-auto p-6">
         {step === 1 && (
-          <div className="max-w-2xl mx-auto">
-            <div
-              onDrop={handleDrop}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-              }}
-              onDragLeave={() => setIsDragging(false)}
-              onClick={() =>
-                !isUploading && document.getElementById("fileInput")?.click()
-              }
-              className={`
-                border-2 border-dashed rounded-2xl p-16 text-center transition-all
-                ${
-                  isUploading
-                    ? "cursor-not-allowed opacity-60"
-                    : "cursor-pointer"
-                }
-                ${
-                  isDragging
-                    ? "border-blue-500 bg-blue-50 scale-105"
-                    : "border-gray-300 bg-white hover:border-blue-400"
-                }
-              `}
-            >
-              <Upload
-                className={`w-16 h-16 mx-auto mb-4 ${
-                  isDragging ? "text-blue-600" : "text-gray-400"
-                }`}
-              />
-              <h3 className="text-xl font-semibold mb-2">
-                {isUploading ? "Uploading..." : "Upload Menu PDF"}
-              </h3>
-              <p className="text-gray-500 mb-4">
-                {isUploading
-                  ? "Please wait while we upload your file"
-                  : "Drag and drop or click to browse"}
-              </p>
-              {!isUploading && (
-                <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg font-medium">
-                  Select PDF File
-                </div>
-              )}
-            </div>
-
-            {uploadProgress > 0 && (
-              <div className="mt-6 bg-white rounded-lg p-4 shadow">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">
-                    {uploadProgress === 100
-                      ? "Upload Complete!"
-                      : "Uploading..."}
-                  </span>
-                  <span className="text-sm text-gray-600">
-                    {uploadProgress}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full transition-all ${
-                      uploadProgress === 100 ? "bg-green-600" : "bg-blue-600"
-                    }`}
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-medium mb-1">Upload Error</div>
-                  <div className="text-sm">{error}</div>
-                </div>
-              </div>
-            )}
-
-            <input
-              type="file"
-              id="fileInput"
-              style={{ display: "none" }}
-              onChange={(e) => handleFileSelect(e.target.files?.[0])}
-              accept="application/pdf"
-              disabled={isUploading}
-            />
-          </div>
+          <PdfUploader
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+            error={error}
+            onFileSelect={handleFileSelect}
+          />
         )}
 
         {step === 2 && (
           <div className="grid grid-cols-12 gap-6">
-            {/* Left Sidebar - Tools */}
             <div className="col-span-3 space-y-4">
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
@@ -817,135 +705,312 @@ export default function PdfUploadPreview() {
                 </ol>
               </div>
             </div>
-
             <div className="col-span-6">
               <div className="bg-white rounded-xl shadow p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex gap-2 bg-gray-100 rounded-lg p-1">
+                    <button
+                      onClick={() => setViewMode("single")}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                        viewMode === "single"
+                          ? "bg-white shadow-sm text-blue-600"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      Single Page
+                    </button>
+                    <button
+                      onClick={() => setViewMode("all")}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${
+                        viewMode === "all"
+                          ? "bg-white shadow-sm text-blue-600"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      All Pages ({numPages})
+                    </button>
+                  </div>
+
+                  <button onClick={handleRefresh} className="flex items-center text-sm border p-1 rounded-md">
+                    <RefreshCcw className="size-4 mr-1"/> Refresh
+                  </button>
+
+                  {viewMode === "single" && (
+                    <div className="text-sm text-gray-600 font-medium">
+                      Page {pageNumber} of {numPages}
+                    </div>
+                  )}
+                </div>
+
                 <div
                   className="overflow-auto max-h-[700px] border border-gray-200 rounded-lg bg-gray-50"
                   ref={containerRef}
                 >
-                  <div
-                    style={{ position: "relative", display: "inline-block" }}
-                  >
-                    <Document
-                      file={pdfFile}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      loading={
-                        <div className="flex items-center justify-center h-96">
-                          <div className="text-center">
-                            <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="text-gray-600">Loading PDF...</p>
-                          </div>
+                  <Document
+                    file={pdfFile}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    loading={
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center">
+                          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4"></div>
+                          <p className="text-gray-600">Loading PDF...</p>
                         </div>
-                      }
-                    >
-                      <Page
-                        pageNumber={pageNumber}
-                        scale={scale}
-                        onLoadSuccess={onPageLoadSuccess}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                      />
-                    </Document>
-                    <canvas
-                      ref={canvasRef}
-                      onMouseDown={handleMouseDown}
-                      onMouseMove={handleMouseMove}
-                      onMouseUp={handleMouseUp}
-                      className="cursor-crosshair"
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        pointerEvents: "auto",
-                      }}
-                    />
-                  </div>
+                      </div>
+                    }
+                  >
+                    {viewMode === "all" ? (
+                      /* ALL PAGES MODE - Show all pages stacked vertically */
+                      <div className="space-y-6 p-4">
+                        {Array.from(
+                          { length: numPages },
+                          (_, index) => index + 1
+                        ).map((pageNum) => (
+                          <div
+                            key={pageNum}
+                            id={`page-${pageNum}`}
+                            className="relative bg-white shadow-lg rounded-lg overflow-hidden scroll-mt-4"
+                          >
+                            {/* Page Header */}
+                            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-10">
+                              <span className="font-semibold">
+                                Page {pageNum}
+                              </span>
+                              <span className="text-sm">
+                                {
+                                  annotations.filter(
+                                    (a) => a.pageNumber === pageNum
+                                  ).length
+                                }{" "}
+                                annotations
+                              </span>
+                            </div>
+
+                            {/* Page Content with Canvas Overlay */}
+                            <div
+                              style={{
+                                position: "relative",
+                                display: "inline-block",
+                              }}
+                            >
+                              <Page
+                                pageNumber={pageNum}
+                                scale={scale}
+                                onLoadSuccess={(page) => {
+                                  if (pageNum === 1) onPageLoadSuccess(page);
+                                }}
+                                renderTextLayer={false}
+                                renderAnnotationLayer={false}
+                              />
+
+                              {/* Canvas overlay for this page */}
+                              <canvas
+                                ref={(ref) => {
+                                  canvasRefs.current[pageNum] = ref;
+                                  if (
+                                    pageNum === pageNumber &&
+                                    viewMode === "all"
+                                  ) {
+                                    canvasRef.current = ref;
+                                  }
+                                }}
+                                onMouseDown={(e) => {
+                                  setPageNumber(pageNum);
+                                  handleMouseDown(e);
+                                }}
+                                onMouseMove={(e) => {
+                                  if (pageNumber === pageNum) {
+                                    handleMouseMove(e);
+                                  }
+                                }}
+                                onMouseUp={(e) => {
+                                  if (pageNumber === pageNum) {
+                                    handleMouseUp(e);
+                                  }
+                                }}
+                                className="cursor-crosshair"
+                                style={{
+                                  position: "absolute",
+                                  top: 0,
+                                  left: 0,
+                                  pointerEvents: "auto",
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* SINGLE PAGE MODE - Show only current page */
+                      <div className="p-4">
+                        <div
+                          style={{
+                            position: "relative",
+                            display: "inline-block",
+                          }}
+                        >
+                          <Page
+                            pageNumber={pageNumber}
+                            scale={scale}
+                            onLoadSuccess={onPageLoadSuccess}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                          />
+                          <canvas
+                            ref={canvasRef}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            className="cursor-crosshair"
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              pointerEvents: "auto",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </Document>
                 </div>
               </div>
             </div>
+            <div className="col-span-3 space-y-4">
+              {/* Add this BEFORE your existing sidebars */}
+              <div className="bg-white rounded-xl shadow p-4">
+                <h3 className="font-semibold mb-3 text-sm">
+                  Pages ({numPages})
+                </h3>
+                <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                  {Array.from({ length: numPages }, (_, i) => i + 1).map(
+                    (pageNum) => {
+                      const pageAnnotationCount = annotations.filter(
+                        (a) => a.pageNumber === pageNum
+                      ).length;
 
-            <div className="col-span-3">
-              <div className="bg-white rounded-xl shadow p-4 max-h-[700px] overflow-auto">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold">
-                    Annotations ({annotations.length})
-                  </h3>
-                  <button
-                    onClick={() => setStep(3)}
-                    disabled={groups.length === 0}
-                    className={`px-3 py-1 text-white text-sm rounded transition ${
-                      groups.length === 0
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-600 hover:bg-blue-700"
-                    }`}
-                  >
-                    Review
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {annotations.map((ann) => {
-                    const type = ANNOTATION_TYPES.find(
-                      (t) => t.id === ann.type
-                    );
-                    const group = groups.find((g) => g.id === ann.groupId);
-                    if (!type) return null;
-
-                    return (
-                      <div
-                        key={ann.id}
-                        className="p-3 border rounded-lg hover:bg-gray-50 transition"
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <div
-                                className="w-3 h-3 rounded"
-                                style={{ backgroundColor: type.color }}
-                              />
-                              <span className="text-sm font-medium">
-                                {type.label}
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => {
+                            setPageNumber(pageNum);
+                            if (viewMode === "all") {
+                              document
+                                .getElementById(`page-${pageNum}`)
+                                ?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "start",
+                                });
+                            } else {
+                              setViewMode("single");
+                            }
+                          }}
+                          className={`w-full border-2 rounded-lg p-2 text-left transition-all hover:border-blue-400 ${
+                            pageNumber === pageNum
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-gray-200 bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">
+                              Page {pageNum}
+                            </span>
+                            {pageAnnotationCount > 0 && (
+                              <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full font-semibold">
+                                {pageAnnotationCount}
                               </span>
-                            </div>
-                            {group && (
-                              <div className="text-xs text-gray-500 mb-2">
-                                {group.name}
-                              </div>
-                            )}
-                            {ann.isExtracting ? (
-                              <div className="flex items-center gap-2 px-2 py-1 text-sm text-blue-600 bg-blue-50 rounded">
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                                <span>Extracting text...</span>
-                              </div>
-                            ) : (
-                              <input
-                                type="text"
-                                value={ann.text}
-                                onChange={(e) =>
-                                  updateAnnotationText(ann.id, e.target.value)
-                                }
-                                placeholder="Enter text..."
-                                className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              />
                             )}
                           </div>
-                          <button
-                            onClick={() => deleteAnnotation(ann.id)}
-                            className="ml-2 p-1 hover:bg-red-50 rounded transition"
-                          >
-                            <Trash2 className="w-4 h-4 text-red-600" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {annotations.length === 0 && (
-                    <div className="text-center py-12 text-gray-400">
-                      <Square className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p className="text-sm">No annotations yet</p>
-                      <p className="text-xs mt-1">Start by creating a group</p>
-                    </div>
+                        </button>
+                      );
+                    }
                   )}
+                </div>
+              </div>
+
+              <div className="col-span-3">
+                <div className="bg-white rounded-xl shadow p-4 max-h-[700px] overflow-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">
+                      Annotations ({annotations.length})
+                    </h3>
+                    <button
+                      onClick={() => setStep(3)}
+                      disabled={groups.length === 0}
+                      className={`px-3 py-1 text-white text-sm rounded transition ${
+                        groups.length === 0
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-blue-600 hover:bg-blue-700"
+                      }`}
+                    >
+                      Review
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {annotations.map((ann) => {
+                      const type = ANNOTATION_TYPES.find(
+                        (t) => t.id === ann.type
+                      );
+                      const group = groups.find((g) => g.id === ann.groupId);
+                      if (!type) return null;
+
+                      return (
+                        <div
+                          key={ann.id}
+                          className="p-3 border rounded-lg hover:bg-gray-50 transition"
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <div
+                                  className="w-3 h-3 rounded"
+                                  style={{ backgroundColor: type.color }}
+                                />
+                                <span className="text-sm font-medium">
+                                  {type.label}
+                                </span>
+                              </div>
+                              {group && (
+                                <div className="text-xs text-gray-500 mb-2">
+                                  {group.name}
+                                </div>
+                              )}
+                              {ann.isExtracting ? (
+                                <div className="flex items-center gap-2 px-2 py-1 text-sm text-blue-600 bg-blue-50 rounded">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Extracting text...</span>
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={ann.text}
+                                  onChange={(e) =>
+                                    updateAnnotationText(ann.id, e.target.value)
+                                  }
+                                  placeholder="Enter text..."
+                                  className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              )}
+                            </div>
+                            <button
+                              onClick={() => deleteAnnotation(ann.id)}
+                              className="ml-2 p-1 hover:bg-red-50 rounded transition"
+                            >
+                              <Trash2 className="w-4 h-4 text-red-600" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {annotations.length === 0 && (
+                      <div className="text-center py-12 text-gray-400">
+                        <Square className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                        <p className="text-sm">No annotations yet</p>
+                        <p className="text-xs mt-1">
+                          Start by creating a group
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1036,25 +1101,8 @@ export default function PdfUploadPreview() {
         {step === 4 && (
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold">Extracted Menu Data</h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={exportToJSON}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export JSON
-                  </button>
-                  <button
-                    onClick={exportToCSV}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export CSV
-                  </button>
-                </div>
-              </div>
+
+              <ExportedFeatures menuItems={menuItems}/>
 
               <MenuTable
                 menuItems={menuItems}

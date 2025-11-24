@@ -8,7 +8,9 @@ export interface Annotation {
   width: number;
   height: number;
   text: string;
+  pageNumber:number;
   groupId: number | null;
+  isExtracting:boolean
 }
 
 export interface Group {

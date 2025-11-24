@@ -4,6 +4,7 @@ import axios from 'axios'
 import type { MenuItem } from './lib/types'
 import { API_BACKEND_URL } from './lib/config'
 import MenuTable from './components/MenuTable'
+import ExportedFeatures from './components/ExportedFeatures'
 
 export default function Menus() {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([])
@@ -38,9 +39,10 @@ export default function Menus() {
             </div>
           </div>
         ) : menuItems && menuItems.length > 0 ? (
-          <div className="bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-            <MenuTable menuItems={menuItems} />
-          </div>
+         <div className="backdrop-blur-lg bg-white/60 rounded-2xl border border-slate-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)] overflow-hidden p-4 space-y-4">
+          <ExportedFeatures menuItems={menuItems} />
+          <MenuTable menuItems={menuItems} />
+        </div>
         ) : (
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center space-y-4 bg-white rounded-xl shadow-lg border border-slate-200 p-12">
