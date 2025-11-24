@@ -6,8 +6,8 @@ const port = process.env.PORT || 3000;
 import MenuRouter from './routes/menu.route.js';
 import cors from 'cors';
 app.use(cors({
-    origin: ["http://localhost:5173", "https://menu-pdf-annotator.vercel.app/"],
-    credentials: false
+    origin: ["http://localhost:5173", "https://menu-pdf-annotator.vercel.app"],
+    credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

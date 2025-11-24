@@ -8,11 +8,9 @@ import cors from 'cors'
 
 
 app.use(cors({
-    origin:["http://localhost:5173" , "https://menu-pdf-annotator.vercel.app/"],
-    credentials:false
-}))
-
-
+  origin: ["http://localhost:5173", "https://menu-pdf-annotator.vercel.app"],
+  credentials: true,
+}));
 
 
 app.use(express.json())
