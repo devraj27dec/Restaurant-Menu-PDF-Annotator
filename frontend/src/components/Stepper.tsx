@@ -4,7 +4,7 @@ export default function Stepper({step}:{step:number}) {
     <div className="bg-white shadow-lg border-b border-gray-200">
       <div className="max-w-5xl mx-auto px-8 py-6">
         <div className="relative">
-          {/* Progress Line */}
+
           <div className="absolute left-0 right-0 h-1 bg-gray-200 top-5">
             <div
               className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500 ease-out"

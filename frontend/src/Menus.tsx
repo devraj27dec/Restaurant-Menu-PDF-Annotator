@@ -1,22 +1,21 @@
 import { useEffect, useState } from 'react'
 import Header from './components/Header'
 import axios from 'axios'
-import type { MenuItem } from './lib/types'
+import type { MenuData } from './lib/types'
 import { API_BACKEND_URL } from './lib/config'
-import MenuTable from './components/MenuTable'
-import ExportedFeatures from './components/ExportedFeatures'
+import { FilterMenuTable } from './components/FilterMenuTable'
 
 export default function Menus() {
-  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [menus, setMenus] = useState<MenuData[]>([])
   const [loading, setLoading] = useState(false)
-
+  
   useEffect(() => {
     async function fetchMenuList() {
       try {
         setLoading(true)
-        const response = await axios.get(`${API_BACKEND_URL}/api/menus/all`)
+        const response = await axios.get(`${API_BACKEND_URL}/api/menus/items`)
         const data = response.data
-        setMenuItems(data)
+        setMenus(data)
       } catch (error) {
         console.log(error)
       } finally {
@@ -25,6 +24,11 @@ export default function Menus() {
     }
     fetchMenuList()
   }, [])
+
+ const sortedMenus = [...menus].sort(
+  (a, b) => new Date(b.uploadDate).getTime() - new Date(a.uploadDate).getTime()
+);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -38,10 +42,10 @@ export default function Menus() {
               <p className="text-slate-600 font-medium">Loading menu items...</p>
             </div>
           </div>
-        ) : menuItems && menuItems.length > 0 ? (
+        ) : menus && menus.length > 0 ? (
          <div className="backdrop-blur-lg bg-white/60 rounded-2xl border border-slate-200/50 shadow-[0_4px_20px_rgba(0,0,0,0.05)] overflow-hidden p-4 space-y-4">
-          <ExportedFeatures menuItems={menuItems} />
-          <MenuTable menuItems={menuItems} />
+          {/* <ExportedFeatures menuItems={menuItems} /> */}
+          <FilterMenuTable menus={sortedMenus} />
         </div>
         ) : (
           <div className="flex items-center justify-center min-h-[400px]">

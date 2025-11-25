@@ -15,6 +15,7 @@ import {
   RefreshCcw,
   Undo,
   Redo,
+  RotateCcw,
 } from "lucide-react";
 import Header from "./Header";
 import MenuTable from "./MenuTable";
@@ -54,6 +55,8 @@ const ANNOTATION_TYPES: AnnotationType[] = [
   },
   { id: "category", label: "Category", color: "#8b5cf6", icon: Layers },
 ];
+
+
 
 export default function PdfUploadPreview() {
   const [step, setStep] = useState<number>(1);
@@ -99,6 +102,7 @@ export default function PdfUploadPreview() {
     createGroup,
     deleteAnnotation,
     groups,
+    setGroups,
     updateAnnotationText,
     finalizeGroup,
     currentGroup,
@@ -260,7 +264,6 @@ export default function PdfUploadPreview() {
       const menuId =
         response.data?.id || response.data?.menuId || response.data?.data?.id;
 
-
       if (menuId) {
         setUploadedMenuId(menuId);
         console.log("Menu ID set:", menuId);
@@ -336,7 +339,6 @@ export default function PdfUploadPreview() {
     );
 
     try {
-      // Get the context from the PDF canvas
       const ctx = pdfCanvas.getContext("2d");
       if (!ctx) return;
 
@@ -370,7 +372,6 @@ export default function PdfUploadPreview() {
           .replace(/\s+/g, " ");
 
 
-
         setAnnotations((prev) =>
           prev.map((a) =>
             a.id === annotation.id
@@ -378,8 +379,6 @@ export default function PdfUploadPreview() {
               : a
           )
         );
-
-        
       }
     } catch (error) {
       console.error("OCR Error:", error);
@@ -439,9 +438,7 @@ export default function PdfUploadPreview() {
         isExtracting: false,
         pageNumber: pageNumber,
       };
-
       setUndoStack((prev) => [...prev , annotations])
-
       setAnnotations([...annotations, newAnnotation]);
 
       setTimeout(() => extractTextFromBox(newAnnotation), 100);
@@ -456,17 +453,14 @@ export default function PdfUploadPreview() {
   const handlUndo = () => {
     if(undoStack.length === 0) return
     const prevShapes = undoStack[undoStack.length - 1]
-    
+
     setRedoStack((prev) => [...prev , annotations])
     setAnnotations(prevShapes)
     setUndoStack((prev) => prev.slice(0, prev.length - 1));
-
   }
-
 
   const handleRedo = () => {
     if (redoStack.length === 0) return;
-
     const next = redoStack[redoStack.length - 1];
     setUndoStack((prev) => [...prev, annotations]); 
     setAnnotations(next);
@@ -510,10 +504,7 @@ export default function PdfUploadPreview() {
 
   const saveAnnotationsToBackend = async () => {
     if (!uploadedMenuId) return setError("Upload PDF first.");
-
     setIsSavingAnnotations(true);
-
-    console.log("Sending annotations:", payload);
 
     try {
       const response = await axios.post(
@@ -565,18 +556,27 @@ export default function PdfUploadPreview() {
     );
   };
 
-  const handleRefresh = () => {
+  const handleReset = () => {
     setAnnotations([]);
-
+    setGroups([])
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const ctx = canvas.getContext("2d");
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.beginPath();
     }
   };
+
+  const handleRefresh = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.beginPath();
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -641,7 +641,6 @@ export default function PdfUploadPreview() {
                   Groups: {groups.length}
                 </div>
               </div>
-
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3">View Controls</h3>
                 <div className="space-y-3">
@@ -667,7 +666,6 @@ export default function PdfUploadPreview() {
                       </button>
                     </div>
                   </div>
-
                   {numPages > 1 && (
                     <div>
                       <label className="text-sm text-gray-600 mb-1 block">
@@ -679,8 +677,7 @@ export default function PdfUploadPreview() {
                             setPageNumber(Math.max(1, pageNumber - 1))
                           }
                           disabled={pageNumber === 1}
-                          className="flex-1 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 text-sm"
-                        >
+                          className="flex-1 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 text-sm">
                           Previous
                         </button>
                         <button
@@ -697,7 +694,6 @@ export default function PdfUploadPreview() {
                   )}
                 </div>
               </div>
-
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3 text-sm">📝 Instructions</h3>
                 <ol className="text-xs text-gray-600 space-y-2">
@@ -735,21 +731,21 @@ export default function PdfUploadPreview() {
                       All Pages ({numPages})
                     </button>
                   </div>
-
                   <div className="flex space-x-2">
                     <button onClick={handlUndo} disabled={undoStack.length === 0}  className="text-sm border p-0.5 rounded-md ">
                       <Undo/>
                     </button>
-
                     <button onClick={handleRedo} disabled={redoStack.length === 0} className="text-sm border p-0.5 rounded-md">
                       <Redo/>
                     </button>
-
                     <button
                       onClick={handleRefresh}
                       className="flex items-center text-sm border p-1 rounded-md ml-2"
                     >
-                      <RefreshCcw className="size-4 mr-1" /> Refresh
+                      <RefreshCcw  className="size-4 mr-1" /> Refresh
+                    </button>
+                    <button className="flex items-center text-sm border p-1 rounded-md ml-2" onClick={handleReset}>
+                      <RotateCcw  className="size-4 mr-1" /> Reset
                     </button>
                   </div>
 
@@ -777,7 +773,6 @@ export default function PdfUploadPreview() {
                     }
                   >
                     {viewMode === "all" ? (
-                      /* ALL PAGES MODE - Show all pages stacked vertically */
                       <div className="space-y-6 p-4">
                         {Array.from(
                           { length: numPages },
@@ -802,8 +797,6 @@ export default function PdfUploadPreview() {
                                 annotations
                               </span>
                             </div>
-
-                            {/* Page Content with Canvas Overlay */}
                             <div
                               style={{
                                 position: "relative",

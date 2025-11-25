@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Annotation, Group } from '../lib/types';
-;
+
 
 
 export function useAnnotations() {
@@ -30,6 +30,7 @@ export function useAnnotations() {
   return {
     annotations,
     groups,
+    setGroups,
     currentGroup,
     createGroup,
     finalizeGroup,

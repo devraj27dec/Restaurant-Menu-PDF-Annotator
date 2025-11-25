@@ -69,8 +69,7 @@ router.post("/:menuId/annotations", async (req, res) => {
   try {
     const { menuId } = req.params;
     const { annotations } = req.body;
-
-    // console.log("annotaions" , annotations)
+    
     if (!menuId) {
       return res.status(400).json({ error: "Menu ID is required" });
     }
@@ -89,6 +88,12 @@ router.post("/:menuId/annotations", async (req, res) => {
         groupId: String(a.groupId),
       })),
     });
+
+    await prisma.menu.update({
+      data: { status: "annotated" },
+      where: { id: menuId ?? "" },
+    });
+
     return res.json({ success: true, count: annotations.length });
   } catch (err) {
     console.error(err);
@@ -98,21 +103,45 @@ router.post("/:menuId/annotations", async (req, res) => {
 
 
 
-router.delete("/:id/annotations", async (req: Request, res: Response) => {
-  const menuId = req.params.id;
+router.patch('/annotations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
 
-  if (!menuId) {
-    return res.status(400).json({ error: "Menu ID is required" });
+    if(!id){
+      return res.status(400).json("AnnotationId is Required")
+    }
+    const updated = await prisma.annotation.update({
+      where: { id },
+      data: updates
+    });
+
+    return res.status(200).json(updated);
+  } catch (error) {
+    console.error('Update error:', error);
+    return res.status(500).json({ error: 'Failed to update annotation' });
   }
+});
 
-  const result = await prisma.annotation.deleteMany({
-    where: {
-      menuId,
-    },
-  });
-  return res
-    .status(200)
-    .send(`Deleted ${result.count} annotation(s) successfully`);
+
+router.delete("/:id/annotations", async (req: Request, res: Response) => {
+  try{
+    const annId = req.params.id;
+
+    if(!annId){
+      return res.status(400).json({ error: "Annotation is Required"})
+    }
+
+    await prisma.annotation.delete({
+      where: { id: annId }
+    });
+    
+    return res.status(200).json({ message: 'Deleted successfully' });
+
+  } catch (error) {
+    console.error('Delete error:', error);
+    return res.status(500).json({ error: 'Failed to delete annotation' });
+  }
 });
 
 
@@ -130,46 +159,10 @@ router.get("/:id/annotations", async (req: Request, res: Response) => {
       menuId,
     },
   });
+
   return res.status(201).json(annotaions);
 });
 
-
-
-router.patch("/:id/annotations", async (req: Request, res: Response) => {
-  const menuId = req.params.id;
-
-  const { annotations } = req.body;
-
-  if (!menuId) {
-    return res.status(400).json({ error: "Menu ID is required" });
-  }
-
-  if (!annotations || !Array.isArray(annotations)) {
-    return res.status(400).json({ error: "Invalid annotations format" });
-  }
-
-  try {
-    await prisma.annotation.deleteMany({
-      where: { menuId },
-    });
-  
-    await prisma.annotation.createMany({
-      data: annotations.map((a) => ({
-        menuId,
-        pageNumber: a.pageNumber,
-        boundingBox: a.boundingBox,
-        text: a.text,
-        type: a.type,
-        groupId: String(a.groupId),
-      })),
-    });
-  
-    return res.status(201).json({message:"Annotation Updated Successfully"})
-  } catch (error) {
-    console.log(error)
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 
 
@@ -220,32 +213,43 @@ router.post("/:id/extract", async (req: Request, res: Response) => {
 
 
 
+// router.get("/:id/items", async (req: Request, res: Response) => {
+//   const menuId = req.params.id;
 
-router.get("/:id/items", async (req: Request, res: Response) => {
-  const menuId = req.params.id;
+//   if (!menuId) {
+//     return res.status(400).json({ error: "Menu ID is required" });
+//   }
 
-  if (!menuId) {
-    return res.status(400).json({ error: "Menu ID is required" });
-  }
-
-  const menuItems = await prisma.menuItem.findMany({
-    where: { menuId: menuId ?? "" },
-  });
-  return res.status(201).json(menuItems);
-});
-
+//   const menuItems = await prisma.menuItem.findMany({
+//     where: { menuId: menuId ?? "" },
+//   });
+//   return res.status(201).json(menuItems);
+// });
 
 
 
-
-router.get("/all", async (req: Request, res: Response) => {
+router.get("/items", async (req: Request, res: Response) => {
   try {
-    const menuList = await prisma.menuItem.findMany();
+    const menuList = await prisma.menu.findMany({
+      include:{
+        menuItems: {
+          select:{
+            id: true,
+            name:true,
+            price:true,
+            category:true,
+            description:true
+          }
+        }
+      }
+    });
     return res.status(200).json(menuList);
   } catch (error) {
     console.error("Error fetching menu items:", error);
     return res.status(500).json({ error: "Failed to fetch menu items" });
   }
 });
+
+
 
 export default router;

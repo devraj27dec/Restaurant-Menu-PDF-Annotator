@@ -11,13 +11,11 @@ export default function Header() {
     link.download = "menu-list.pdf"; 
     link.click();
   };
-
-
+  
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          {/* Logo/Brand */}
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow">
               <FileText className="w-5 h-5 text-white" />
@@ -26,14 +24,10 @@ export default function Header() {
               PDF Menu Annotation Tool
             </h1>
           </Link>
-
-          {/* Navigation */}
-
           <div className="flex space-x-4">
             <button onClick={handleDummyFileDownload} className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all border bg-blue-600 text-white shadow-md cursor-pointer">
               Download <Download className="ml-1"/>
             </button>
-          
             <Link
               to="/menu-list"
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${

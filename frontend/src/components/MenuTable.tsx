@@ -1,4 +1,4 @@
-import { Save, Edit2 } from "lucide-react";
+// import { Save, Edit2 } from "lucide-react";
 import type { MenuItem } from "../lib/types";
 
 interface MenuItemsProps {
@@ -8,7 +8,10 @@ interface MenuItemsProps {
   updateMenuItem?: (id: number, field: keyof MenuItem, value: string) => void;
 }
 
-export default function MenuTable({menuItems ,editingItem , updateMenuItem , setEditingItem}:MenuItemsProps) {
+export default function MenuTable(
+  {menuItems ,editingItem , updateMenuItem , 
+  // setEditingItem
+}:MenuItemsProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full">
@@ -18,7 +21,7 @@ export default function MenuTable({menuItems ,editingItem , updateMenuItem , set
             <th className="px-4 py-3 text-left text-sm font-semibold">Price</th>
             <th className="px-4 py-3 text-left text-sm font-semibold">Description</th>
             <th className="px-4 py-3 text-left text-sm font-semibold">Category</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th>
+            {/* <th className="px-4 py-3 text-left text-sm font-semibold">Actions</th> */}
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -36,7 +39,7 @@ export default function MenuTable({menuItems ,editingItem , updateMenuItem , set
                   <span className="font-medium">{item.name || "—"}</span>
                 )}
               </td>
-
+              
               <td className="px-4 py-3">
                 {editingItem === item.id ? (
                   <input
@@ -78,7 +81,7 @@ export default function MenuTable({menuItems ,editingItem , updateMenuItem , set
                 )}
               </td>
 
-              <td className="px-4 py-3">
+              {/* <td className="px-4 py-3">
                 <div className="flex gap-2">
                   {editingItem === item.id ? (
                     <button
@@ -98,7 +101,7 @@ export default function MenuTable({menuItems ,editingItem , updateMenuItem , set
                     </button>
                   )}
                 </div>
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>

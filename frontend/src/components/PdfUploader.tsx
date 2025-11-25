@@ -22,7 +22,7 @@ export default function PdfUploader({
     const file = e.dataTransfer.files[0];
     if (file) onFileSelect(file);
   };
-  
+
   return (
     <div className="max-w-2xl mx-auto">
       <div

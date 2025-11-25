@@ -9,7 +9,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-
 const App = () => {
   return (
     <Router>

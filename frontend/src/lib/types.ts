@@ -18,6 +18,14 @@ export interface Group {
   name: string;
 }
 
+export interface MenuData {
+  id: string;
+  filename: string;
+  uploadDate: string;
+  status: string;
+  menuItems: MenuItem[];
+}
+
 export interface MenuItem {
   id: number;
   name: string;
