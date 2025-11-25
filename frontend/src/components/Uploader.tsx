@@ -2,14 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Document, Page } from "react-pdf";
 import {
-  Square,
-  Tag,
-  DollarSign,
-  AlignLeft,
-  Layers,
-  Trash2,
-  ZoomIn,
-  ZoomOut,
   Loader2,
   AlertCircle,
   RefreshCcw,
@@ -28,35 +20,14 @@ import { API_BACKEND_URL } from "../lib/config";
 import ExportedFeatures from "./ExportedFeatures";
 import toast from "react-hot-toast";
 import AnnotationsToolBar from "./AnnotationsToolBar";
+import ScaleController from "./ScaleController";
+import AnnotationsList, { ANNOTATION_TYPES } from "./AnnotationsList";
 
 declare global {
   interface Window {
     Tesseract: any;
   }
 }
-
-type IconComponent = typeof Tag;
-
-interface AnnotationType {
-  id: string;
-  label: string;
-  color: string;
-  icon: IconComponent;
-}
-
-const ANNOTATION_TYPES: AnnotationType[] = [
-  { id: "item", label: "Item Name", color: "#3b82f6", icon: Tag },
-  { id: "price", label: "Price", color: "#10b981", icon: DollarSign },
-  {
-    id: "description",
-    label: "Description",
-    color: "#f59e0b",
-    icon: AlignLeft,
-  },
-  { id: "category", label: "Category", color: "#8b5cf6", icon: Layers },
-];
-
-
 
 export default function PdfUploadPreview() {
   const [step, setStep] = useState<number>(1);
@@ -93,20 +64,11 @@ export default function PdfUploadPreview() {
 
   const canvasRefs = useRef<{ [key: number]: HTMLCanvasElement | null }>({});
 
-
   const [undoStack, setUndoStack] = useState<Annotation[][]>([]);
   const [redoStack, setRedoStack] = useState<Annotation[][]>([]);
 
-
-  const {
-    createGroup,
-    deleteAnnotation,
-    groups,
-    setGroups,
-    updateAnnotationText,
-    finalizeGroup,
-    currentGroup,
-  } = useAnnotations();
+  const { createGroup, groups, setGroups, finalizeGroup, currentGroup } =
+    useAnnotations();
 
   useEffect(() => {
     const script = document.createElement("script");
@@ -121,100 +83,121 @@ export default function PdfUploadPreview() {
     };
   }, []);
 
-  useEffect(() => {
-    if (viewMode === "all") {
-      Object.entries(canvasRefs.current).forEach(([pageNum, canvas]) => {
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+  function AllPages() {
+    Object.entries(canvasRefs.current).forEach(([pageNum, canvas]) => {
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-        canvas.width = pageWidth;
-        canvas.height = pageHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.width = pageWidth;
+      canvas.height = pageHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const pageAnnotations = annotations.filter(
-          (a) => a.pageNumber === parseInt(pageNum)
-        );
+      const pageAnnotations = annotations.filter(
+        (a) => a.pageNumber === parseInt(pageNum)
+      );
 
-        pageAnnotations.forEach((ann) => {
-          const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
-          if (!type) return;
+      pageAnnotations.forEach((ann) => {
+        const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+        if (!type) return;
 
-          ctx.strokeStyle = type.color;
-          ctx.lineWidth = 3;
-          ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+        ctx.strokeStyle = type.color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
 
-          ctx.fillStyle = type.color;
-          ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
+        ctx.fillStyle = type.color;
+        ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
 
-          ctx.fillStyle = "white";
-          ctx.font = "bold 12px sans-serif";
-          ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
-        });
-
-        if (currentBox && pageNumber === parseInt(pageNum)) {
-          const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
-          if (type) {
-            ctx.strokeStyle = type.color;
-            ctx.lineWidth = 3;
-            ctx.setLineDash([5, 5]);
-            ctx.strokeRect(
-              currentBox.x,
-              currentBox.y,
-              currentBox.width,
-              currentBox.height
-            );
-            ctx.setLineDash([]);
-          }
-        }
+        ctx.fillStyle = "white";
+        ctx.font = "bold 12px sans-serif";
+        ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
       });
-    } else {
-      if (canvasRef.current && pageWidth && pageHeight) {
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
 
-        canvas.width = pageWidth;
-        canvas.height = pageHeight;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const pageAnnotations = annotations.filter(
-          (a) => a.pageNumber === pageNumber
-        );
-
-        pageAnnotations.forEach((ann) => {
-          const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
-          if (!type) return;
-
+      if (currentBox && pageNumber === parseInt(pageNum)) {
+        const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
+        if (type) {
           ctx.strokeStyle = type.color;
           ctx.lineWidth = 3;
-          ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
-
-          ctx.fillStyle = type.color;
-          ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
-
-          ctx.fillStyle = "white";
-          ctx.font = "bold 12px sans-serif";
-          ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
-        });
-
-        if (currentBox) {
-          const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
-          if (type) {
-            ctx.strokeStyle = type.color;
-            ctx.lineWidth = 3;
-            ctx.setLineDash([5, 5]);
-            ctx.strokeRect(
-              currentBox.x,
-              currentBox.y,
-              currentBox.width,
-              currentBox.height
-            );
-            ctx.setLineDash([]);
-          }
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(
+            currentBox.x,
+            currentBox.y,
+            currentBox.width,
+            currentBox.height
+          );
+          ctx.setLineDash([]);
         }
       }
+    });
+  }
+
+  function renderSinglePage() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    resizeCanvas(canvas);
+
+    const pageAnnotations = annotations.filter(
+      (a) => a.pageNumber === pageNumber
+    );
+
+    drawAnnotations(ctx, pageAnnotations);
+    drawCurrentBox(ctx, pageNumber);
+  }
+
+  function drawAnnotations(ctx: CanvasRenderingContext2D, items: any) {
+    items.forEach((ann: Annotation) => {
+      const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+      if (!type) return;
+
+      ctx.strokeStyle = type.color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+
+      ctx.fillStyle = type.color;
+      ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
+
+      ctx.fillStyle = "white";
+      ctx.font = "bold 12px sans-serif";
+      ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+    });
+  }
+
+  function drawCurrentBox(ctx: CanvasRenderingContext2D, pg: number) {
+    if (!currentBox || pg !== pageNumber) return;
+
+    const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
+    if (!type) return;
+
+    ctx.strokeStyle = type.color;
+    ctx.lineWidth = 3;
+    ctx.setLineDash([5, 5]);
+    ctx.strokeRect(
+      currentBox.x,
+      currentBox.y,
+      currentBox.width,
+      currentBox.height
+    );
+    ctx.setLineDash([]);
+  }
+
+  function resizeCanvas(canvas: HTMLCanvasElement) {
+    canvas.width = pageWidth;
+    canvas.height = pageHeight;
+  }
+
+  useEffect(() => {
+    if (viewMode === "all") {
+      AllPages();
+    } else {
+      if (canvasRef.current && pageWidth && pageHeight) {
+        renderSinglePage();
+      }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     annotations,
     currentBox,
@@ -313,24 +296,25 @@ export default function PdfUploadPreview() {
     hiddenCanvas.height = viewport.height;
 
     if (context) {
-      page.render({
-        canvasContext: context,
-        viewport: viewport,
-      })
-      .promise.then(() => {
-        setPdfCanvas(hiddenCanvas);
-      });
+      page
+        .render({
+          canvasContext: context,
+          viewport: viewport,
+        })
+        .promise.then(() => {
+          setPdfCanvas(hiddenCanvas);
+        });
     }
   };
 
   const extractTextFromBox = async (annotation: Annotation) => {
     if (!currentGroup) {
       toast.error("Please Create a Group First");
+      setAnnotations([]);
       return;
     }
 
     if (!pdfCanvas || !tesseractLoaded || !window.Tesseract) return;
-
 
     setAnnotations((prev) =>
       prev.map((a) =>
@@ -370,7 +354,6 @@ export default function PdfUploadPreview() {
           .trim()
           .replace(/\n+/g, " ")
           .replace(/\s+/g, " ");
-
 
         setAnnotations((prev) =>
           prev.map((a) =>
@@ -438,7 +421,7 @@ export default function PdfUploadPreview() {
         isExtracting: false,
         pageNumber: pageNumber,
       };
-      setUndoStack((prev) => [...prev , annotations])
+      setUndoStack((prev) => [...prev, annotations]);
       setAnnotations([...annotations, newAnnotation]);
 
       setTimeout(() => extractTextFromBox(newAnnotation), 100);
@@ -449,20 +432,19 @@ export default function PdfUploadPreview() {
     setStartPos(null);
   };
 
-
   const handlUndo = () => {
-    if(undoStack.length === 0) return
-    const prevShapes = undoStack[undoStack.length - 1]
+    if (undoStack.length === 0) return;
+    const prevShapes = undoStack[undoStack.length - 1];
 
-    setRedoStack((prev) => [...prev , annotations])
-    setAnnotations(prevShapes)
+    setRedoStack((prev) => [...prev, annotations]);
+    setAnnotations(prevShapes);
     setUndoStack((prev) => prev.slice(0, prev.length - 1));
-  }
+  };
 
   const handleRedo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
-    setUndoStack((prev) => [...prev, annotations]); 
+    setUndoStack((prev) => [...prev, annotations]);
     setAnnotations(next);
     setRedoStack((prev) => prev.slice(0, prev.length - 1));
   };
@@ -558,7 +540,8 @@ export default function PdfUploadPreview() {
 
   const handleReset = () => {
     setAnnotations([]);
-    setGroups([])
+    setGroups([]);
+    finalizeGroup();
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -576,7 +559,7 @@ export default function PdfUploadPreview() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.beginPath();
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -641,59 +624,15 @@ export default function PdfUploadPreview() {
                   Groups: {groups.length}
                 </div>
               </div>
-              <div className="bg-white rounded-xl shadow p-4">
-                <h3 className="font-semibold mb-3">View Controls</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm text-gray-600 mb-1 block">
-                      Zoom
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setScale(Math.max(0.5, scale - 0.25))}
-                        className="p-2 hover:bg-gray-100 rounded"
-                      >
-                        <ZoomOut className="w-4 h-4" />
-                      </button>
-                      <span className="flex-1 text-center text-sm font-medium">
-                        {Math.round(scale * 100)}%
-                      </span>
-                      <button
-                        onClick={() => setScale(Math.min(3, scale + 0.25))}
-                        className="p-2 hover:bg-gray-100 rounded"
-                      >
-                        <ZoomIn className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  {numPages > 1 && (
-                    <div>
-                      <label className="text-sm text-gray-600 mb-1 block">
-                        Page {pageNumber} of {numPages}
-                      </label>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() =>
-                            setPageNumber(Math.max(1, pageNumber - 1))
-                          }
-                          disabled={pageNumber === 1}
-                          className="flex-1 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 text-sm">
-                          Previous
-                        </button>
-                        <button
-                          onClick={() =>
-                            setPageNumber(Math.min(numPages, pageNumber + 1))
-                          }
-                          disabled={pageNumber === numPages}
-                          className="flex-1 px-3 py-2 bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50 text-sm"
-                        >
-                          Next
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+
+              <ScaleController
+                pageNumber={pageNumber}
+                numPages={numPages}
+                setPageNumber={setPageNumber}
+                scale={scale}
+                setScale={setScale}
+              />
+
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3 text-sm">📝 Instructions</h3>
                 <ol className="text-xs text-gray-600 space-y-2">
@@ -732,20 +671,31 @@ export default function PdfUploadPreview() {
                     </button>
                   </div>
                   <div className="flex space-x-2">
-                    <button onClick={handlUndo} disabled={undoStack.length === 0}  className="text-sm border p-0.5 rounded-md ">
-                      <Undo/>
+                    <button
+                      onClick={handlUndo}
+                      disabled={undoStack.length === 0}
+                      className="text-sm border p-0.5 rounded-md "
+                    >
+                      <Undo />
                     </button>
-                    <button onClick={handleRedo} disabled={redoStack.length === 0} className="text-sm border p-0.5 rounded-md">
-                      <Redo/>
+                    <button
+                      onClick={handleRedo}
+                      disabled={redoStack.length === 0}
+                      className="text-sm border p-0.5 rounded-md"
+                    >
+                      <Redo />
                     </button>
                     <button
                       onClick={handleRefresh}
                       className="flex items-center text-sm border p-1 rounded-md ml-2"
                     >
-                      <RefreshCcw  className="size-4 mr-1" /> Refresh
+                      <RefreshCcw className="size-4 mr-1" /> Refresh
                     </button>
-                    <button className="flex items-center text-sm border p-1 rounded-md ml-2" onClick={handleReset}>
-                      <RotateCcw  className="size-4 mr-1" /> Reset
+                    <button
+                      className="flex items-center text-sm border p-1 rounded-md ml-2"
+                      onClick={handleReset}
+                    >
+                      <RotateCcw className="size-4 mr-1" /> Reset
                     </button>
                   </div>
 
@@ -937,88 +887,12 @@ export default function PdfUploadPreview() {
                 </div>
               </div>
               <div className="col-span-3">
-                <div className="bg-white rounded-xl shadow p-4 max-h-[700px] overflow-auto">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold">
-                      Annotations ({annotations.length})
-                    </h3>
-                    <button
-                      onClick={() => setStep(3)}
-                      disabled={groups.length === 0}
-                      className={`px-3 py-1 text-white text-sm rounded transition ${
-                        groups.length === 0
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"}`}>
-
-                      Review
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {annotations.map((ann) => {
-                      const type = ANNOTATION_TYPES.find(
-                        (t) => t.id === ann.type
-                      );
-                      const group = groups.find((g) => g.id === ann.groupId);
-                      if (!type) return null;
-                      return (
-                        <div
-                          key={ann.id}
-                          className="p-3 border rounded-lg hover:bg-gray-50 transition"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <div
-                                  className="w-3 h-3 rounded"
-                                  style={{ backgroundColor: type.color }}
-                                />
-                                <span className="text-sm font-medium">
-                                  {type.label}
-                                </span>
-                              </div>
-                              {group && (
-                                <div className="text-xs text-gray-500 mb-2">
-                                  {group.name}
-                                </div>
-                              )}
-                              {ann.isExtracting ? (
-                                <div className="flex items-center gap-2 px-2 py-1 text-sm text-blue-600 bg-blue-50 rounded">
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                  <span>Extracting text...</span>
-                                </div>
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={ann.text}
-                                  onChange={(e) =>
-                                    updateAnnotationText(ann.id, e.target.value)
-                                  }
-                                  placeholder="Enter text..."
-                                  className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                              )}
-                            </div>
-                            <button
-                              onClick={() => deleteAnnotation(ann.id)}
-                              className="ml-2 p-1 hover:bg-red-50 rounded transition"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {annotations.length === 0 && (
-                      <div className="text-center py-12 text-gray-400">
-                        <Square className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                        <p className="text-sm">No annotations yet</p>
-                        <p className="text-xs mt-1">
-                          Start by creating a group
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <AnnotationsList
+                  groups={groups}
+                  setStep={setStep}
+                  annotations={annotations}
+                  setAnnotations={setAnnotations}
+                />
               </div>
             </div>
           </div>
