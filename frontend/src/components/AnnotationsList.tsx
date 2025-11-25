@@ -1,6 +1,5 @@
 import { Loader2, Trash2, Square, AlignLeft, DollarSign, Layers, Tag } from "lucide-react";
 import  type{ Annotation, Group } from "../lib/types";
-import { useAnnotations } from "../hooks/useAnnotations";
 
 
 type IconComponent = typeof Tag;
