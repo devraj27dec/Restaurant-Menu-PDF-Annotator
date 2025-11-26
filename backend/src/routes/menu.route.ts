@@ -213,18 +213,18 @@ router.post("/:id/extract", async (req: Request, res: Response) => {
 
 
 
-// router.get("/:id/items", async (req: Request, res: Response) => {
-//   const menuId = req.params.id;
+router.get("/:id/items", async (req: Request, res: Response) => {
+  const menuId = req.params.id;
 
-//   if (!menuId) {
-//     return res.status(400).json({ error: "Menu ID is required" });
-//   }
+  if (!menuId) {
+    return res.status(400).json({ error: "Menu ID is required" });
+  }
 
-//   const menuItems = await prisma.menuItem.findMany({
-//     where: { menuId: menuId ?? "" },
-//   });
-//   return res.status(201).json(menuItems);
-// });
+  const menuItems = await prisma.menuItem.findMany({
+    where: { menuId: menuId ?? "" },
+  });
+  return res.status(201).json(menuItems);
+});
 
 
 

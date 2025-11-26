@@ -159,16 +159,16 @@ router.post("/:id/extract", async (req, res) => {
         return res.status(500).json({ error: "Internal server error" });
     }
 });
-// router.get("/:id/items", async (req: Request, res: Response) => {
-//   const menuId = req.params.id;
-//   if (!menuId) {
-//     return res.status(400).json({ error: "Menu ID is required" });
-//   }
-//   const menuItems = await prisma.menuItem.findMany({
-//     where: { menuId: menuId ?? "" },
-//   });
-//   return res.status(201).json(menuItems);
-// });
+router.get("/:id/items", async (req, res) => {
+    const menuId = req.params.id;
+    if (!menuId) {
+        return res.status(400).json({ error: "Menu ID is required" });
+    }
+    const menuItems = await prisma.menuItem.findMany({
+        where: { menuId: menuId ?? "" },
+    });
+    return res.status(201).json(menuItems);
+});
 router.get("/items", async (req, res) => {
     try {
         const menuList = await prisma.menu.findMany({

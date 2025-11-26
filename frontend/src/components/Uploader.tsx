@@ -22,12 +22,9 @@ import toast from "react-hot-toast";
 import AnnotationsToolBar from "./AnnotationsToolBar";
 import ScaleController from "./ScaleController";
 import AnnotationsList, { ANNOTATION_TYPES } from "./AnnotationsList";
+import {recognize} from 'tesseract.js'
+import InstructionsPannel from "./InstructionsPannel";
 
-declare global {
-  interface Window {
-    Tesseract: any;
-  }
-}
 
 export default function PdfUploadPreview() {
   const [step, setStep] = useState<number>(1);
@@ -45,7 +42,7 @@ export default function PdfUploadPreview() {
   const [pageWidth, setPageWidth] = useState<number>(0);
   const [pageHeight, setPageHeight] = useState<number>(0);
   const [pdfCanvas, setPdfCanvas] = useState<HTMLCanvasElement | null>(null);
-  const [tesseractLoaded, setTesseractLoaded] = useState<boolean>(false);
+  // const [tesseractLoaded, setTesseractLoaded] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,7 +55,7 @@ export default function PdfUploadPreview() {
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [editingItem, setEditingItem] = useState<number | null>(null);
-  const [_, setIsSavingMenuItems] = useState<boolean>(false);
+  const [isSavingMenuItems, setIsSavingMenuItems] = useState<boolean>(false);
 
   const [viewMode, setViewMode] = useState<"single" | "all">("all");
 
@@ -70,18 +67,6 @@ export default function PdfUploadPreview() {
   const { createGroup, groups, setGroups, finalizeGroup, currentGroup } =
     useAnnotations();
 
-  useEffect(() => {
-    const script = document.createElement("script");
-    script.src =
-      "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js";
-    script.async = true;
-    script.onload = () => setTesseractLoaded(true);
-    document.head.appendChild(script);
-
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
 
   function AllPages() {
     Object.entries(canvasRefs.current).forEach(([pageNum, canvas]) => {
@@ -310,11 +295,11 @@ export default function PdfUploadPreview() {
   const extractTextFromBox = async (annotation: Annotation) => {
     if (!currentGroup) {
       toast.error("Please Create a Group First");
-      setAnnotations([]);
+      // setAnnotations([]);
       return;
     }
 
-    if (!pdfCanvas || !tesseractLoaded || !window.Tesseract) return;
+    if (!pdfCanvas) return;
 
     setAnnotations((prev) =>
       prev.map((a) =>
@@ -346,7 +331,7 @@ export default function PdfUploadPreview() {
 
         const {
           data: { text },
-        } = await window.Tesseract.recognize(cropCanvas.toDataURL(), "eng", {
+        } = await recognize(cropCanvas.toDataURL(), "eng", {
           logger: (m: any) => console.log(m),
         });
 
@@ -382,7 +367,7 @@ export default function PdfUploadPreview() {
     setIsDrawing(true);
     setStartPos({ x, y });
   };
-
+  
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || step !== 2 || !canvasRef.current || !startPos) return;
     const canvas = canvasRef.current;
@@ -449,25 +434,25 @@ export default function PdfUploadPreview() {
     setRedoStack((prev) => prev.slice(0, prev.length - 1));
   };
 
-  const extractData = () => {
-    const extractedItems: MenuItem[] = groups.map((group) => {
-      const groupAnnotations = annotations.filter(
-        (a) => a.groupId === group.id
-      );
-      const item: MenuItem = {
-        id: group.id,
-        name: groupAnnotations.find((a) => a.type === "name")?.text || "",
-        price: groupAnnotations.find((a) => a.type === "price")?.text || "",
-        description:
-          groupAnnotations.find((a) => a.type === "description")?.text || "",
-        category:
-          groupAnnotations.find((a) => a.type === "category")?.text || "",
-      };
-      return item;
-    });
-    setMenuItems(extractedItems);
-    setStep(4);
-  };
+  // const extractData = () => {
+  //   const extractedItems: MenuItem[] = groups.map((group) => {
+  //     const groupAnnotations = annotations.filter(
+  //       (a) => a.groupId === group.id
+  //     );
+  //     const item: MenuItem = {
+  //       id: group.id,
+  //       name: groupAnnotations.find((a) => a.type === "name")?.text || "",
+  //       price: groupAnnotations.find((a) => a.type === "price")?.text || "",
+  //       description:
+  //         groupAnnotations.find((a) => a.type === "description")?.text || "",
+  //       category:
+  //         groupAnnotations.find((a) => a.type === "category")?.text || "",
+  //     };
+  //     return item;
+  //   });
+  //   setMenuItems(extractedItems);
+
+  // };
 
   const payload = {
     annotations: annotations.map((a) => ({
@@ -493,11 +478,12 @@ export default function PdfUploadPreview() {
         `${API_BACKEND_URL}/api/menus/${uploadedMenuId}/annotations`,
         payload
       );
-
       await saveMenuItems();
-
+      // setAnnotations(response.data)
+      
       console.log("Annotations saved:", response.data);
-      extractData();
+      // extractData();
+      setStep(4);
     } catch (err: any) {
       console.error("Save annotations error:", err);
       setError("Failed to save annotations.");
@@ -515,7 +501,6 @@ export default function PdfUploadPreview() {
 
     try {
       setIsSavingMenuItems(true);
-
       const response = await axios.post(
         `${API_BACKEND_URL}/api/menus/${uploadedMenuId}/extract`
       );
@@ -531,6 +516,45 @@ export default function PdfUploadPreview() {
       setIsSavingAnnotations(false);
     }
   };
+
+
+  const fetchMenuItems = async () => {
+    if (!uploadedMenuId) {
+      setError("No menu ID found");
+      return;
+    }
+
+    try {
+      setIsSavingMenuItems(true);
+      const response = await axios.get(
+        `${API_BACKEND_URL}/api/menus/${uploadedMenuId}/items`
+      );
+
+      console.log("Fetched menuItems:", response.data);
+
+      if (response.data && Array.isArray(response.data)) {
+        setMenuItems(response.data);
+      } else {
+        setError("No menu items found.");
+      }
+    } catch (error: any) {
+      setError(error.response?.data?.message || "Failed to fetch menu items");
+
+    } finally {
+      setIsSavingMenuItems(false);
+    }
+  };
+  
+  useEffect(() => {
+    if (!uploadedMenuId || step !== 4) return;
+    
+    const timer = setTimeout(() => {
+      fetchMenuItems();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, uploadedMenuId]);
 
   const updateMenuItem = (id: number, field: keyof MenuItem, value: string) => {
     setMenuItems((prev) =>
@@ -562,7 +586,7 @@ export default function PdfUploadPreview() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-linear-to-br from-slate-50 via-blue-50 to-indigo-50">
       <Header />
 
       <Stepper step={step} />
@@ -633,17 +657,8 @@ export default function PdfUploadPreview() {
                 setScale={setScale}
               />
 
-              <div className="bg-white rounded-xl shadow p-4">
-                <h3 className="font-semibold mb-3 text-sm">📝 Instructions</h3>
-                <ol className="text-xs text-gray-600 space-y-2">
-                  <li>1. Select annotation type</li>
-                  <li>2. Click "Start New Group"</li>
-                  <li>3. Draw boxes on menu items</li>
-                  <li>4. Enter extracted text</li>
-                  <li>5. Click "Finish Group"</li>
-                  <li>6. Repeat for all items</li>
-                </ol>
-              </div>
+              <InstructionsPannel/>
+              
             </div>
             <div className="col-span-6">
               <div className="bg-white rounded-xl shadow p-4">
@@ -734,7 +749,7 @@ export default function PdfUploadPreview() {
                             className="relative bg-white shadow-lg rounded-lg overflow-hidden scroll-mt-4"
                           >
                             {/* Page Header */}
-                            <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-10">
+                            <div className="bg-linear-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-10">
                               <span className="font-semibold">
                                 Page {pageNum}
                               </span>
@@ -956,7 +971,7 @@ export default function PdfUploadPreview() {
                 <button
                   onClick={saveAnnotationsToBackend}
                   disabled={isSavingAnnotations}
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 px-6 py-3 bg-linear-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSavingAnnotations ? (
                     <>
@@ -971,7 +986,7 @@ export default function PdfUploadPreview() {
 
               {error && (
                 <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                   <div className="text-sm">{error}</div>
                 </div>
               )}
@@ -981,19 +996,21 @@ export default function PdfUploadPreview() {
         {step === 4 && (
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6">
-              <ExportedFeatures menuItems={menuItems} />
-
-              <MenuTable
-                menuItems={menuItems}
-                setEditingItem={setEditingItem}
-                editingItem={editingItem}
-                updateMenuItem={updateMenuItem}
-              />
-
-              {menuItems.length === 0 && (
-                <div className="text-center py-12 text-gray-400">
-                  <p>No menu items extracted yet</p>
+              {isSavingMenuItems ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                  <span className="ml-3 text-gray-600">Loading menu items...</span>
                 </div>
+              ) : (
+                <>
+                  <ExportedFeatures menuItems={menuItems} />
+                  <MenuTable
+                    menuItems={menuItems}
+                    setEditingItem={setEditingItem}
+                    editingItem={editingItem}
+                    updateMenuItem={updateMenuItem}
+                  />
+                </>
               )}
             </div>
           </div>
