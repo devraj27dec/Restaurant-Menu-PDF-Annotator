@@ -21,12 +21,13 @@ export default function ExportedFeatures({menuItems}: ExportedFeaturesProps) {
 
   const exportToCSV = () => {
     const headers = ["Name", "Price", "Description", "Category"];
-    const rows = menuItems.map((item) => [
-      `"${item.name.replace(/"/g, '""')}"`,
-      `"${item.price.replace(/"/g, '""')}"`,
-      `"${item.description.replace(/"/g, '""')}"`,
-      `"${item.category.replace(/"/g, '""')}"`,
-    ]);
+      const rows = menuItems.map((item) => [
+    `"${String(item.name ?? "").replace(/"/g, '""')}"`,
+    `"${String(item.price ?? "").replace(/"/g, '""')}"`,
+    `"${(item.description ?? "").replace(/"/g, '""')}"`,
+    `"${(item.category ?? "").replace(/"/g, '""')}"`,
+  ]);
+
     const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
     const dataBlob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(dataBlob);

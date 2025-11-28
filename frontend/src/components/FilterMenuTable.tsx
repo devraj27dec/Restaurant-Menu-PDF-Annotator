@@ -170,7 +170,7 @@ export const FilterMenuTable = ({ menus }: MenuTableProps) => {
                                         </td>
 
                                         <td className="px-4 py-3">
-                                          <span className={`px-2 py-1 rounded text-sm font-medium ${getCategoryClass(item.category)}`}>
+                                          <span className={`px-2 py-1 rounded text-sm font-medium ${getCategoryClass(item.category ?? "")}`}>
                                             {item.category || "—"}
                                           </span>
                                         </td>
