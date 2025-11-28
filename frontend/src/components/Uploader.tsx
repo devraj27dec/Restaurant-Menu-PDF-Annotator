@@ -22,7 +22,6 @@ import toast from "react-hot-toast";
 import AnnotationsToolBar from "./AnnotationsToolBar";
 import ScaleController from "./ScaleController";
 import AnnotationsList from "./AnnotationsList";
-import InstructionsPannel from "./InstructionsPannel";
 import { Tag, DollarSign, AlignLeft, Layers} from "lucide-react";
 
 type IconComponent = typeof Tag;
@@ -50,7 +49,7 @@ export const ANNOTATION_TYPES: AnnotationType[] = [
 
 
 export default function PdfUploadPreview() {
-  const [step, setStep] = useState<number>(1);
+  const [step, setStep] = useState<number>(2);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadedMenuId, setUploadedMenuId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
@@ -654,8 +653,6 @@ export default function PdfUploadPreview() {
                 scale={scale}
                 setScale={setScale}
               />
-
-              <InstructionsPannel />
             </div>
             <div className="col-span-6">
               <div className="bg-white rounded-xl shadow p-4">
