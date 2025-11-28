@@ -36,11 +36,13 @@ export interface MenuData {
 }
 
 export interface MenuItem {
-  id?: number;
+  id: number;
   name: string;
-  price: string;
-  description: string;
-  category: string;
+  price: number | string;
+  description?: string;
+  category?: string;
+  annotationId?: string;
+  menuId?: string;
 }
 
 export interface Position {
