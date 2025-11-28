@@ -21,9 +21,32 @@ import ExportedFeatures from "./ExportedFeatures";
 import toast from "react-hot-toast";
 import AnnotationsToolBar from "./AnnotationsToolBar";
 import ScaleController from "./ScaleController";
-import AnnotationsList, { ANNOTATION_TYPES } from "./AnnotationsList";
-import {recognize} from 'tesseract.js'
+import AnnotationsList from "./AnnotationsList";
 import InstructionsPannel from "./InstructionsPannel";
+import { Tag, DollarSign, AlignLeft, Layers} from "lucide-react";
+
+type IconComponent = typeof Tag;
+
+interface AnnotationType {
+  id: string;
+  label: string;
+  color: string;
+  icon: IconComponent;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export const ANNOTATION_TYPES: AnnotationType[] = [
+  { id: "item", label: "Item Name", color: "#3b82f6", icon: Tag },
+  { id: "price", label: "Price", color: "#10b981", icon: DollarSign },
+  {
+    id: "description",
+    label: "Description",
+    color: "#f59e0b",
+    icon: AlignLeft,
+  },
+  { id: "category", label: "Category", color: "#8b5cf6", icon: Layers },
+];
+
 
 
 export default function PdfUploadPreview() {
@@ -41,7 +64,7 @@ export default function PdfUploadPreview() {
   const [scale, setScale] = useState<number>(1.5);
   const [pageWidth, setPageWidth] = useState<number>(0);
   const [pageHeight, setPageHeight] = useState<number>(0);
-  const [pdfCanvas, setPdfCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [, setPdfCanvas] = useState<HTMLCanvasElement | null>(null);
   // const [tesseractLoaded, setTesseractLoaded] = useState<boolean>(false);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,7 +74,7 @@ export default function PdfUploadPreview() {
   const [currentBox, setCurrentBox] = useState<Box | null>(null);
 
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [selectedType, setSelectedType] = useState<string>("item");
+  // const [selectedType, setSelectedType] = useState<string>("item");
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [editingItem, setEditingItem] = useState<number | null>(null);
@@ -67,6 +90,7 @@ export default function PdfUploadPreview() {
   const { createGroup, groups, setGroups, finalizeGroup, currentGroup } =
     useAnnotations();
 
+  // const [isDialog, setIsDialog] = useState(false);
 
   function AllPages() {
     Object.entries(canvasRefs.current).forEach(([pageNum, canvas]) => {
@@ -81,37 +105,25 @@ export default function PdfUploadPreview() {
       const pageAnnotations = annotations.filter(
         (a) => a.pageNumber === parseInt(pageNum)
       );
+      // pageAnnotations.forEach((ann) => {
+      //   const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+      //   if (!type) return;
 
-      pageAnnotations.forEach((ann) => {
-        const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
-        if (!type) return;
+      //   ctx.strokeStyle = type.color;
+      //   ctx.lineWidth = 3;
+      //   ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
 
-        ctx.strokeStyle = type.color;
-        ctx.lineWidth = 3;
-        ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
+      //   ctx.fillStyle = type.color;
+      //   ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
 
-        ctx.fillStyle = type.color;
-        ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
-
-        ctx.fillStyle = "white";
-        ctx.font = "bold 12px sans-serif";
-        ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
-      });
+      //   ctx.fillStyle = "white";
+      //   ctx.font = "bold 12px sans-serif";
+      //   ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+      // });
+      drawAnnotations(ctx, pageAnnotations);
 
       if (currentBox && pageNumber === parseInt(pageNum)) {
-        const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
-        if (type) {
-          ctx.strokeStyle = type.color;
-          ctx.lineWidth = 3;
-          ctx.setLineDash([5, 5]);
-          ctx.strokeRect(
-            currentBox.x,
-            currentBox.y,
-            currentBox.width,
-            currentBox.height
-          );
-          ctx.setLineDash([]);
-        }
+        drawCurrentBox(ctx, pageNumber);
       }
     });
   }
@@ -135,29 +147,31 @@ export default function PdfUploadPreview() {
 
   function drawAnnotations(ctx: CanvasRenderingContext2D, items: any) {
     items.forEach((ann: Annotation) => {
-      const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
-      if (!type) return;
+      // const type = ANNOTATION_TYPES.find((t) => t.id === ann.type);
+      // if (!type) return;
 
-      ctx.strokeStyle = type.color;
+      ctx.strokeStyle = "#3b82f6";
       ctx.lineWidth = 3;
       ctx.strokeRect(ann.x, ann.y, ann.width, ann.height);
 
-      ctx.fillStyle = type.color;
+      ctx.fillStyle = "#3b82f6";
       ctx.fillRect(ann.x, Math.max(0, ann.y - 25), 120, 25);
 
       ctx.fillStyle = "white";
       ctx.font = "bold 12px sans-serif";
-      ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+      // ctx.fillText(type.label, ann.x + 5, Math.max(17, ann.y - 8));
+      const label = ann.isExtracting ? "Extracting..." : "Menu Item";
+      ctx.fillText(label, ann.x + 5, Math.max(17, ann.y - 8));
     });
   }
 
   function drawCurrentBox(ctx: CanvasRenderingContext2D, pg: number) {
     if (!currentBox || pg !== pageNumber) return;
 
-    const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
-    if (!type) return;
+    // const type = ANNOTATION_TYPES.find((t) => t.id === selectedType);
+    // if (!type) return;
 
-    ctx.strokeStyle = type.color;
+    ctx.strokeStyle = "#3b82f6";
     ctx.lineWidth = 3;
     ctx.setLineDash([5, 5]);
     ctx.strokeRect(
@@ -167,6 +181,8 @@ export default function PdfUploadPreview() {
       currentBox.height
     );
     ctx.setLineDash([]);
+
+    // setIsDialog(true);
   }
 
   function resizeCanvas(canvas: HTMLCanvasElement) {
@@ -175,22 +191,27 @@ export default function PdfUploadPreview() {
   }
 
   useEffect(() => {
-    if (viewMode === "all") {
-      AllPages();
-    } else {
-      if (canvasRef.current && pageWidth && pageHeight) {
-        renderSinglePage();
+
+  const timer = setTimeout(() => {
+      if (viewMode === "all") {
+        AllPages();
+      } else {
+        if (canvasRef.current && pageWidth && pageHeight) {
+          renderSinglePage();
+        }
       }
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     annotations,
     currentBox,
-    selectedType,
     pageWidth,
     pageHeight,
     viewMode,
     pageNumber,
+    step, 
   ]);
 
   const FILE_SIZE = 5 * 1024 * 1024;
@@ -231,7 +252,6 @@ export default function PdfUploadPreview() {
 
       const menuId =
         response.data?.id || response.data?.menuId || response.data?.data?.id;
-
       if (menuId) {
         setUploadedMenuId(menuId);
         console.log("Menu ID set:", menuId);
@@ -292,71 +312,53 @@ export default function PdfUploadPreview() {
     }
   };
 
-  const extractTextFromBox = async (annotation: Annotation) => {
-    if (!currentGroup) {
-      toast.error("Please Create a Group First");
-      // setAnnotations([]);
-      return;
-    }
+  // const extractTextFromBox = async (annotation: Annotation) => {
+  //   if (!currentGroup) {
+  //     toast.error("Please Create a Group First");
+  //     // setAnnotations([]);
+  //     return;
+  //   }
 
-    if (!pdfCanvas) return;
+  //   if (!pdfCanvas) return;
 
-    setAnnotations((prev) =>
-      prev.map((a) =>
-        a.id === annotation.id ? { ...a, isExtracting: true } : a
-      )
-    );
+  //   setAnnotations((prev) =>
+  //     prev.map((a) =>
+  //       a.id === annotation.id ? { ...a, isExtracting: true } : a
+  //     )
+  //   );
 
-    try {
-      const ctx = pdfCanvas.getContext("2d");
-      if (!ctx) return;
+  //   try {
+  //     const ctx = pdfCanvas.getContext("2d");
+  //     if (!ctx) return;
 
-      const cropCanvas = document.createElement("canvas");
-      cropCanvas.width = Math.abs(annotation.width);
-      cropCanvas.height = Math.abs(annotation.height);
-      const cropCtx = cropCanvas.getContext("2d");
+  //     const cropCanvas = document.createElement("canvas");
+  //     cropCanvas.width = Math.abs(annotation.width);
+  //     cropCanvas.height = Math.abs(annotation.height);
+  //     const cropCtx = cropCanvas.getContext("2d");
 
-      if (cropCtx) {
-        cropCtx.drawImage(
-          pdfCanvas,
-          annotation.x,
-          annotation.y,
-          annotation.width,
-          annotation.height,
-          0,
-          0,
-          annotation.width,
-          annotation.height
-        );
+  //     if (cropCtx) {
+  //       cropCtx.drawImage(
+  //         pdfCanvas,
+  //         annotation.x,
+  //         annotation.y,
+  //         annotation.width,
+  //         annotation.height,
+  //         0,
+  //         0,
+  //         annotation.width,
+  //         annotation.height
+  //       );
 
-        const {
-          data: { text },
-        } = await recognize(cropCanvas.toDataURL(), "eng", {
-          logger: (m: any) => console.log(m),
-        });
-
-        const cleanedText = text
-          .trim()
-          .replace(/\n+/g, " ")
-          .replace(/\s+/g, " ");
-
-        setAnnotations((prev) =>
-          prev.map((a) =>
-            a.id === annotation.id
-              ? { ...a, text: cleanedText, isExtracting: false }
-              : a
-          )
-        );
-      }
-    } catch (error) {
-      console.error("OCR Error:", error);
-      setAnnotations((prev) =>
-        prev.map((a) =>
-          a.id === annotation.id ? { ...a, isExtracting: false } : a
-        )
-      );
-    }
-  };
+  //     }
+  //   } catch (error) {
+  //     console.error("OCR Error:", error);
+  //     setAnnotations((prev) =>
+  //       prev.map((a) =>
+  //         a.id === annotation.id ? { ...a, isExtracting: false } : a
+  //       )
+  //     );
+  //   }
+  // };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (step !== 2 || !canvasRef.current) return;
@@ -366,8 +368,10 @@ export default function PdfUploadPreview() {
     const y = e.clientY - rect.top;
     setIsDrawing(true);
     setStartPos({ x, y });
+    // setIsDialog(false);
+    setCurrentBox(null);
   };
-  
+
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || step !== 2 || !canvasRef.current || !startPos) return;
     const canvas = canvasRef.current;
@@ -380,11 +384,20 @@ export default function PdfUploadPreview() {
       y: startPos.y,
       width: x - startPos.x,
       height: y - startPos.y,
+
     });
   };
 
   const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing || step !== 2 || !canvasRef.current || !startPos) return;
+    
+    if (!currentGroup) {
+      toast.error("Please Create a Group First");
+      setIsDrawing(false);
+      setStartPos(null);
+      return;
+    }
+    
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -396,7 +409,7 @@ export default function PdfUploadPreview() {
     if (width > 20 && height > 20) {
       const newAnnotation: Annotation = {
         id: Date.now(),
-        type: selectedType,
+        type:"item",
         x: Math.min(startPos.x, x),
         y: Math.min(startPos.y, y),
         width: width,
@@ -409,14 +422,14 @@ export default function PdfUploadPreview() {
       setUndoStack((prev) => [...prev, annotations]);
       setAnnotations([...annotations, newAnnotation]);
 
-      setTimeout(() => extractTextFromBox(newAnnotation), 100);
+      toast.success("Bounding box created!");
     }
 
     setIsDrawing(false);
     setCurrentBox(null);
     setStartPos(null);
   };
-
+  
   const handlUndo = () => {
     if (undoStack.length === 0) return;
     const prevShapes = undoStack[undoStack.length - 1];
@@ -434,30 +447,12 @@ export default function PdfUploadPreview() {
     setRedoStack((prev) => prev.slice(0, prev.length - 1));
   };
 
-  // const extractData = () => {
-  //   const extractedItems: MenuItem[] = groups.map((group) => {
-  //     const groupAnnotations = annotations.filter(
-  //       (a) => a.groupId === group.id
-  //     );
-  //     const item: MenuItem = {
-  //       id: group.id,
-  //       name: groupAnnotations.find((a) => a.type === "name")?.text || "",
-  //       price: groupAnnotations.find((a) => a.type === "price")?.text || "",
-  //       description:
-  //         groupAnnotations.find((a) => a.type === "description")?.text || "",
-  //       category:
-  //         groupAnnotations.find((a) => a.type === "category")?.text || "",
-  //     };
-  //     return item;
-  //   });
-  //   setMenuItems(extractedItems);
-
-  // };
-
   const payload = {
     annotations: annotations.map((a) => ({
       pageNumber: a.pageNumber!,
-      type: a.type,
+      id:a.id,
+      type: "item",
+      menuId: uploadedMenuId,
       groupId: a.groupId,
       boundingBox: {
         x: a.x / scale,
@@ -465,9 +460,16 @@ export default function PdfUploadPreview() {
         width: a.width / scale,
         height: a.height / scale,
       },
-      text: a.text?.trim() || "",
+      text: JSON.stringify({
+        name: a.name,
+        price: a.price,
+        category: a.category,
+        description: a.description
+      }),
     })),
   };
+
+  console.log("Payload" , payload)
 
   const saveAnnotationsToBackend = async () => {
     if (!uploadedMenuId) return setError("Upload PDF first.");
@@ -480,7 +482,7 @@ export default function PdfUploadPreview() {
       );
       await saveMenuItems();
       // setAnnotations(response.data)
-      
+
       console.log("Annotations saved:", response.data);
       // extractData();
       setStep(4);
@@ -499,6 +501,7 @@ export default function PdfUploadPreview() {
       return;
     }
 
+
     try {
       setIsSavingMenuItems(true);
       const response = await axios.post(
@@ -516,7 +519,6 @@ export default function PdfUploadPreview() {
       setIsSavingAnnotations(false);
     }
   };
-
 
   const fetchMenuItems = async () => {
     if (!uploadedMenuId) {
@@ -539,21 +541,20 @@ export default function PdfUploadPreview() {
       }
     } catch (error: any) {
       setError(error.response?.data?.message || "Failed to fetch menu items");
-
     } finally {
       setIsSavingMenuItems(false);
     }
   };
-  
+
   useEffect(() => {
     if (!uploadedMenuId || step !== 4) return;
-    
+
     const timer = setTimeout(() => {
       fetchMenuItems();
     }, 500);
 
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, uploadedMenuId]);
 
   const updateMenuItem = (id: number, field: keyof MenuItem, value: string) => {
@@ -604,10 +605,7 @@ export default function PdfUploadPreview() {
         {step === 2 && (
           <div className="grid grid-cols-12 gap-6">
             <div className="col-span-3 space-y-4">
-              <AnnotationsToolBar
-                selectedType={selectedType}
-                onSelectType={setSelectedType}
-              />
+              <AnnotationsToolBar/>
 
               <div className="bg-white rounded-xl shadow p-4">
                 <h3 className="font-semibold mb-3">Grouping</h3>
@@ -657,8 +655,7 @@ export default function PdfUploadPreview() {
                 setScale={setScale}
               />
 
-              <InstructionsPannel/>
-              
+              <InstructionsPannel />
             </div>
             <div className="col-span-6">
               <div className="bg-white rounded-xl shadow p-4">
@@ -720,7 +717,6 @@ export default function PdfUploadPreview() {
                     </div>
                   )}
                 </div>
-
                 <div
                   className="overflow-auto max-h-[700px] border border-gray-200 rounded-lg bg-gray-50"
                   ref={containerRef}
@@ -748,7 +744,6 @@ export default function PdfUploadPreview() {
                             id={`page-${pageNum}`}
                             className="relative bg-white shadow-lg rounded-lg overflow-hidden scroll-mt-4"
                           >
-                            {/* Page Header */}
                             <div className="bg-linear-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 flex items-center justify-between sticky top-0 z-10">
                               <span className="font-semibold">
                                 Page {pageNum}
@@ -777,8 +772,6 @@ export default function PdfUploadPreview() {
                                 renderTextLayer={false}
                                 renderAnnotationLayer={false}
                               />
-
-                              {/* Canvas overlay for this page */}
                               <canvas
                                 ref={(ref) => {
                                   canvasRefs.current[pageNum] = ref;
@@ -816,7 +809,7 @@ export default function PdfUploadPreview() {
                         ))}
                       </div>
                     ) : (
-                      /* SINGLE PAGE MODE - Show only current page */
+
                       <div className="p-4">
                         <div
                           style={{
@@ -903,7 +896,6 @@ export default function PdfUploadPreview() {
               </div>
               <div className="col-span-3">
                 <AnnotationsList
-                  groups={groups}
                   setStep={setStep}
                   annotations={annotations}
                   setAnnotations={setAnnotations}
@@ -917,6 +909,15 @@ export default function PdfUploadPreview() {
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-2xl font-bold mb-6">Review Annotations</h2>
+              
+              {/* <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-900 mb-2">📦 What happens next?</h3>
+                <p className="text-sm text-blue-700">
+                  You've drawn <strong>{annotations.length} bounding boxes</strong>. When you click "Save to Database", 
+                  the backend will automatically extract the name, price, description, and category from each box using OCR.
+                </p>
+              </div> */}
+
               <div className="space-y-4 mb-6">
                 {groups.map((group) => {
                   const groupAnnotations = annotations.filter(
@@ -927,39 +928,39 @@ export default function PdfUploadPreview() {
                       key={group.id}
                       className="border-2 border-blue-200 rounded-lg p-4 bg-blue-50"
                     >
-                      <h3 className="font-semibold text-lg mb-3">
-                        {group.name}
+                      <h3 className="font-semibold text-lg mb-3 flex items-center justify-between">
+                        <span>{group.name}</span>
+                        <span className="text-sm bg-blue-600 text-white px-3 py-1 rounded-full">
+                          {groupAnnotations.length} boxes
+                        </span>
                       </h3>
                       <div className="grid grid-cols-2 gap-3">
-                        {ANNOTATION_TYPES.map((type) => {
-                          const ann = groupAnnotations.find(
-                            (a) => a.type === type.id
-                          );
-                          return (
-                            <div
-                              key={type.id}
-                              className="bg-white p-3 rounded shadow-sm"
-                            >
-                              <div className="flex items-center gap-2 mb-1">
-                                <div
-                                  className="w-3 h-3 rounded"
-                                  style={{ backgroundColor: type.color }}
-                                />
-                                <span className="text-sm font-medium">
-                                  {type.label}
-                                </span>
+                        {groupAnnotations.map((ann) => (
+                          <div
+                            key={ann.id}
+                            className="bg-white p-3 rounded shadow-sm"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-3 h-3 bg-blue-500 rounded" />
+                              <span className="text-sm font-medium">Menu Item Box</span>
+                            </div>
+                            <div className="text-xs text-gray-600 space-y-1">
+                              <div>Page: {ann.pageNumber}</div>
+                              <div>
+                                Position: ({Math.round(ann.x)}, {Math.round(ann.y)})
                               </div>
-                              <div className="text-sm text-gray-700">
-                                {ann?.text || "—"}
+                              <div>
+                                Size: {Math.round(ann.width)} × {Math.round(ann.height)}px
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   );
                 })}
               </div>
+              
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(2)}
@@ -976,10 +977,15 @@ export default function PdfUploadPreview() {
                   {isSavingAnnotations ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Saving to Database...
+                      Saving & Extracting...
                     </>
                   ) : (
-                    "Save to Database"
+                    <>
+                      Save to Database & Extract
+                      <span className="text-xs opacity-75">
+                        ({annotations.length} boxes)
+                      </span>
+                    </>
                   )}
                 </button>
               </div>
@@ -993,13 +999,16 @@ export default function PdfUploadPreview() {
             </div>
           </div>
         )}
+                
         {step === 4 && (
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-xl shadow p-6">
               {isSavingMenuItems ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-                  <span className="ml-3 text-gray-600">Loading menu items...</span>
+                  <span className="ml-3 text-gray-600">
+                    Loading menu items...
+                  </span>
                 </div>
               ) : (
                 <>

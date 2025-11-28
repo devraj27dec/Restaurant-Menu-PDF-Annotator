@@ -2,7 +2,6 @@ import express from "express";
 import multer from "multer";
 import { PDFParse } from "pdf-parse";
 import { prisma } from "../prisma.js";
-import { ExtractMenuItems } from "../services.js";
 const router = express.Router();
 const storage = multer.memoryStorage();
 const MAX_SIZE = 5 * 1024 * 1024;
@@ -130,32 +129,74 @@ router.post("/:id/extract", async (req, res) => {
     if (!menuId) {
         return res.status(400).json({ error: "Menu ID is required" });
     }
-    const annotation = await prisma.annotation.findFirst({
-        where: { menuId: menuId ?? "" },
-    });
     try {
-        const menuItems = await ExtractMenuItems(menuId);
-        await Promise.all(menuItems.map(async (item) => {
-            console.log("items", item);
-            await prisma.menuItem.create({
-                data: {
-                    menuId: menuId ?? "",
-                    annotationId: annotation?.id ?? "",
-                    name: item.name,
-                    description: item.description ?? "",
-                    price: item.price ? parseFloat(item.price.split("$")[1] ?? "0") : 0,
-                    category: item.category ?? "Uncategorized",
-                },
-            });
-        }));
-        await prisma.menu.update({
-            data: { status: "extracted" },
-            where: { id: menuId ?? "" },
+        const annotations = await prisma.annotation.findMany({
+            where: { menuId },
         });
-        return res.status(201).json({ success: true, created: menuItems.length });
+        if (!annotations.length) {
+            return res.status(400).json({ error: "No annotations found" });
+        }
+        const groups = {};
+        for (const ann of annotations) {
+            if (!groups[ann.groupId])
+                groups[ann.groupId] = [];
+            groups[ann.groupId]?.push(ann);
+        }
+        
+        const menuItems = [];
+        
+        for (const groupId in groups) {
+            const group = groups[groupId];
+
+            const items = group.filter(g => g.type === "item");
+
+            if (!items.length) continue;
+
+            for (const item of items) {
+                let parsedData = {};
+                try {
+                parsedData = JSON.parse(item.text);
+                } catch (err) {
+                console.warn("Invalid JSON:", item.text);
+                continue;
+                }
+
+                menuItems.push({
+                groupId,
+                annotationId: item.id,
+                name: parsedData.name || "",
+                price: parsedData.price || "",
+                category: parsedData.category || "Uncategorized",
+                description: parsedData.description || "",
+                });
+            }
+            }
+
+
+        await Promise.all(menuItems.map((item) => prisma.menuItem.create({
+            data: {
+                menuId,
+                annotationId: item.annotationId,
+                name: item.name,
+                description: item.description,
+                category: item.category,
+                price: Number(typeof item.price === "string"
+                    ? item.price.replace(/[^0-9.]/g, "")
+                    : item.price || 0),
+            },
+        })));
+        await prisma.menu.update({
+            where: { id: menuId },
+            data: { status: "extracted" },
+        });
+        return res.status(201).json({
+            success: true,
+            created: menuItems.length,
+            items: menuItems,
+        });
     }
     catch (error) {
-        console.error(error);
+        console.error("Extract error:", error);
         return res.status(500).json({ error: "Internal server error" });
     }
 });
