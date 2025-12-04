@@ -142,37 +142,33 @@ router.post("/:id/extract", async (req, res) => {
                 groups[ann.groupId] = [];
             groups[ann.groupId]?.push(ann);
         }
-        
         const menuItems = [];
-        
         for (const groupId in groups) {
             const group = groups[groupId];
-
-            const items = group.filter(g => g.type === "item");
-
-            if (!items.length) continue;
-
-            for (const item of items) {
+            const itemFields = group?.filter((g) => g.type === "item");
+            if (!itemFields?.length)
+                continue;
+            for (const itemField of itemFields) {
+                if (!itemField || !itemField.text)
+                    continue;
                 let parsedData = {};
                 try {
-                parsedData = JSON.parse(item.text);
-                } catch (err) {
-                console.warn("Invalid JSON:", item.text);
-                continue;
+                    parsedData = JSON.parse(itemField.text);
                 }
-
+                catch {
+                    console.warn("Invalid JSON found:", itemField.text);
+                    continue;
+                }
                 menuItems.push({
-                groupId,
-                annotationId: item.id,
-                name: parsedData.name || "",
-                price: parsedData.price || "",
-                category: parsedData.category || "Uncategorized",
-                description: parsedData.description || "",
+                    groupId,
+                    annotationId: itemField.id,
+                    name: parsedData.name || "",
+                    price: parsedData.price || "",
+                    category: parsedData.category || "Uncategorized",
+                    description: parsedData.description || "",
                 });
             }
-            }
-
-
+        }
         await Promise.all(menuItems.map((item) => prisma.menuItem.create({
             data: {
                 menuId,

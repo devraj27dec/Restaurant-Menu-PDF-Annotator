@@ -49,7 +49,7 @@ export const ANNOTATION_TYPES: AnnotationType[] = [
 
 
 export default function PdfUploadPreview() {
-  const [step, setStep] = useState<number>(2);
+  const [step, setStep] = useState<number>(1);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [uploadedMenuId, setUploadedMenuId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
